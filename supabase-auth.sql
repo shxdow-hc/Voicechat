@@ -144,3 +144,10 @@ create policy "Users and platform admins can read profiles" on public.profiles
 -- select id from auth.users
 -- where lower(raw_user_meta_data ->> 'username')=lower('REPLACE_WITH_OWNER_USERNAME')
 -- on conflict(user_id) do nothing;
+
+-- Allow only verified platform admins to inspect account online heartbeats.
+grant select on public.account_sessions to authenticated;
+drop policy if exists "Platform admins read account sessions" on public.account_sessions;
+create policy "Platform admins read account sessions"
+ on public.account_sessions for select to authenticated
+ using (exists(select 1 from public.platform_admins a where a.user_id=auth.uid()));
