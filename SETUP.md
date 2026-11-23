@@ -1,6 +1,6 @@
 # VoiceChat setup
 
-The GitHub Pages site is the frontend only. Live rooms need a Supabase project for realtime signaling; WebRTC then carries the audio and screen-share streams directly between browsers. This first version is a small-room prototype, not a production voice service.
+The GitHub Pages site is the frontend only. Live rooms need a Supabase project for realtime signaling; WebRTC then carries the audio and screen-share streams directly between browsers. This first version is a small-room prototype, not a production voice service. Visitors enter as guests; there is no password-based account system.
 
 ## 1. Create a Supabase project
 
@@ -61,6 +61,9 @@ Your site will be:
 - Passwords are handled by Supabase Auth; the app does not store passwords in local storage.
 - The publishable Supabase key in the frontend is expected. Never expose a service-role key.
 
-## 6. Private platform owner dashboard
+## Guest access notes
 
-The dashboard is hidden unless the signed-in account has a row in `platform_admins`. After the owner confirms their exact registered username, run the one-time SQL statement at the bottom of `supabase-auth.sql` with that username. Do not add any other account. The dashboard lists registered usernames, account creation dates, online/offline state, active room names/codes, and room members. The owner can join or close an active room, suspend/unsuspend an account, and revoke an account session. Suspended users are blocked at login. It never exposes passwords. Room activity expires after 90 seconds without a heartbeat. Run the complete latest SQL file again after each dashboard schema update.
+- There is no registration, login, password, or account logout in the website.
+- Supabase creates a temporary anonymous identity automatically so room presence can be securely associated with the current browser session.
+- Display names and profile pictures are stored locally in that browser. They are not verified account identities.
+- Existing `profiles`, `account_sessions`, or `platform_admins` tables from the previous account-based version are no longer used by the website. The updated SQL does not delete those old tables or their data.
