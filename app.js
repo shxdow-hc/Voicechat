@@ -36,7 +36,7 @@ async function refreshAdminDashboard() {
   if(!isPlatformAdmin || !authUser) return;
   $("admin-message").textContent="Refreshing…";
   const [u,r,s]=await Promise.all([
-    supabase.from("profiles").select("id,username,created_at").order("created_at",{ascending:false}).limit(500),
+    supabase.from("profiles").select("id,username,created_at,suspended").order("created_at",{ascending:false}).limit(500),
     supabase.from("room_sessions").select("user_id,username,room_key,room_name,room_code,last_seen").limit(1000),
     supabase.from("account_sessions").select("user_id,last_seen").limit(1000)
   ]);
@@ -56,9 +56,12 @@ async function refreshAdminDashboard() {
     sub.textContent="Room Number: "+members[0].room_code+" · "+members.length+" member(s)";
     people.textContent="Members: "+members.map(x=>x.username).join(", ");
     left.append(title,sub,people);
+    const actions=document.createElement("div");actions.style.display="flex";actions.style.gap="6px";
     join.type="button";join.className="small-button";join.textContent="Join";
     join.addEventListener("click",async()=>{$("admin-dialog").close();await enterRoom(roomIdentity(members[0].room_name,members[0].room_code),false);});
-    row.append(left,join);roomBox.append(row);
+    const close=document.createElement("button");close.type="button";close.className="small-button";close.textContent="Close room";
+    close.addEventListener("click",async()=>{const result=await supabase.from("room_sessions").update({force_closed:true}).eq("room_key",members[0].room_key);if(result.error){$("admin-message").textContent="Couldn't close room.";return;}await refreshAdminDashboard();});
+    actions.append(join,close);row.append(left,actions);roomBox.append(row);
   });
   const userBox=$("admin-users");userBox.replaceChildren();
   (u.data||[]).forEach(user=>{
@@ -67,7 +70,12 @@ async function refreshAdminDashboard() {
     title.textContent=user.username;sub.textContent="Joined "+new Date(user.created_at).toLocaleDateString();
     const inRoom=live.some(x=>x.user_id===user.id);
     status.textContent=inRoom?"Online · In a room":onlineIds.has(user.id)?"Online · In lobby":"Offline";
-    left.append(title,sub);row.append(left,status);userBox.append(row);
+    const actions=document.createElement("div");actions.style.display="flex";actions.style.gap="6px";
+    const suspend=document.createElement("button");suspend.type="button";suspend.className="small-button";suspend.textContent=user.suspended?"Unsuspend":"Suspend";
+    suspend.addEventListener("click",async()=>{const result=await supabase.from("profiles").update({suspended:!user.suspended}).eq("id",user.id);if(result.error){$("admin-message").textContent="Couldn't update account status.";return;}await refreshAdminDashboard();});
+    const revoke=document.createElement("button");revoke.type="button";revoke.className="small-button";revoke.textContent="Log out";
+    revoke.addEventListener("click",async()=>{const result=await supabase.from("account_sessions").delete().eq("user_id",user.id);if(result.error){$("admin-message").textContent="Couldn't revoke session.";return;}await refreshAdminDashboard();});
+    actions.append(suspend,revoke);left.append(title,sub);row.append(left,status,actions);userBox.append(row);
   });
   $("admin-message").textContent="Updated just now. Offline room activity expires after 90 seconds.";
 }
@@ -144,7 +152,7 @@ async function startAccountLock() {
   if (accountHeartbeat) clearInterval(accountHeartbeat);
   accountHeartbeat = setInterval(async () => {
     const { data: active, error: heartbeatError } = await supabase.rpc("refresh_account_session", { p_session_id: accountSessionId });
-    if (room) await supabase.from("room_sessions").update({last_seen:new Date().toISOString()}).eq("user_id",userId);
+    if (room) { const presence=await supabase.from("room_sessions").update({last_seen:new Date().toISOString()}).eq("user_id",userId).select("force_closed").maybeSingle(); if (presence.data?.force_closed) { await leaveRoom(false); toast("The HCunion owner closed this room."); } }
     if (heartbeatError || active !== true) {
       clearInterval(accountHeartbeat); accountHeartbeat = null;
       await supabase.auth.signOut();
@@ -181,11 +189,12 @@ $("account-logout").addEventListener("click", logoutAccount);
 async function loadAccount(user) {
   if (!user) return;
   await startAccountLock();
-  const { data, error } = await supabase.from("profiles").select("username").eq("id", user.id).single();
+  const { data, error } = await supabase.from("profiles").select("username,suspended").eq("id", user.id).single();
   if (error || !data?.username) {
     authMessage("Your account profile could not be loaded. Check the Supabase SQL setup in SETUP.md.");
     return;
   }
+  if (data.suspended) { await supabase.rpc("release_account_session", { p_session_id: accountSessionId }); await supabase.auth.signOut(); authMessage("This account has been suspended by the HCunion owner."); return; }
   authUser = user;
   await checkPlatformAdmin();
   userId = user.id;
@@ -308,7 +317,7 @@ async function enterRoom(info, create) {
   $("chat-messages").innerHTML = "";
   $("chat-empty").classList.remove("hidden");
   showRoom(); setConnection("Connecting…");
-  await supabase.from("room_sessions").upsert({user_id:userId,username:displayName,room_key:info.key,room_name:info.name,room_code:info.code,joined_at:new Date().toISOString(),last_seen:new Date().toISOString()},{onConflict:"user_id"});\n  channel = supabase.channel("voicechat:" + info.key, { config: { presence: { key: userId }, broadcast: { self: false } } });
+  await supabase.from("room_sessions").upsert({user_id:userId,username:displayName,room_key:info.key,room_name:info.name,room_code:info.code,joined_at:new Date().toISOString(),last_seen:new Date().toISOString(),force_closed:false},{onConflict:"user_id"});\n  channel = supabase.channel("voicechat:" + info.key, { config: { presence: { key: userId }, broadcast: { self: false } } });
   channel.on("presence", { event: "sync" }, syncMembers);
   channel.on("broadcast", { event: "signal" }, ({ payload }) => handleSignal(payload));
   channel.on("broadcast", { event: "room-chat" }, ({ payload }) => receiveChatMessage(payload));
