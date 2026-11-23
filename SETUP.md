@@ -62,3 +62,7 @@ Your site will be:
 - Usernames are 3–20 characters and may contain letters, numbers, and underscores.
 - Passwords are handled by Supabase Auth; the app does not store passwords in local storage.
 - The publishable Supabase key in the frontend is expected. Never expose a service-role key.
+
+## 6. Private platform owner dashboard
+
+The dashboard is hidden unless the signed-in account has a row in `platform_admins`. After the owner confirms their exact registered username, run the one-time SQL statement at the bottom of `supabase-auth.sql` with that username. Do not add any other account. The dashboard lists registered usernames and active rooms; it never exposes passwords. Room activity expires after 90 seconds without a heartbeat.
