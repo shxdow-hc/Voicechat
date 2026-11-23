@@ -50,7 +50,7 @@ function requireConfig() {
 }
 $("username-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  const chosen = $("username-input").value.trim().replace(/\\s+/g, " ");
+  const chosen = $("username-input").value.trim().replace(/\s+/g, " ");
   if (chosen.length < 2 || chosen.length > 24) {
     $("username-message").textContent = "Username must be between 2 and 24 characters.";
     return;
