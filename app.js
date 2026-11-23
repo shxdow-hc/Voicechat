@@ -80,10 +80,13 @@ async function enterRoom(info, create) {
   $("self-avatar").textContent = initials(displayName);
   $("self-role").textContent = isOwner ? "Room owner" : "Member";
   $("room-menu-button").classList.toggle("hidden", !isOwner);
+  $("chat-messages").innerHTML = "";
+  $("chat-empty").classList.remove("hidden");
   showRoom(); setConnection("Connecting…");
   channel = supabase.channel("voicechat:" + info.key, { config: { presence: { key: userId }, broadcast: { self: false } } });
   channel.on("presence", { event: "sync" }, syncMembers);
   channel.on("broadcast", { event: "signal" }, ({ payload }) => handleSignal(payload));
+  channel.on("broadcast", { event: "room-chat" }, ({ payload }) => receiveChatMessage(payload));
   channel.on("broadcast", { event: "moderation" }, ({ payload }) => handleModeration(payload));
   channel.on("broadcast", { event: "role" }, ({ payload }) => handleRole(payload));
   channel.on("broadcast", { event: "room-closed" }, () => { toast("The owner closed this room."); leaveRoom(false); });
@@ -98,6 +101,45 @@ async function enterRoom(info, create) {
     }
   });
 }
+
+function formatChatTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+function renderChatMessage(message) {
+  const list = $("chat-messages");
+  $("chat-empty").classList.add("hidden");
+  const item = document.createElement("article");
+  item.className = "chat-message";
+  const heading = document.createElement("div");
+  heading.className = "chat-message-heading";
+  const name = document.createElement("strong");
+  name.textContent = message.name || "Guest";
+  const time = document.createElement("time");
+  time.textContent = formatChatTime(message.createdAt || Date.now());
+  heading.append(name, time);
+  const body = document.createElement("p");
+  body.textContent = message.text;
+  item.append(heading, body);
+  list.append(item);
+  while (list.children.length > 100) list.firstElementChild.remove();
+  list.scrollTop = list.scrollHeight;
+}
+function receiveChatMessage(message) {
+  if (!message || message.from === userId || typeof message.text !== "string") return;
+  renderChatMessage(message);
+}
+async function sendChatMessage(event) {
+  event.preventDefault();
+  const input = $("chat-input");
+  const message = input.value.trim();
+  if (!message || !channel || message.length > 1000) return;
+  const payload = { from: userId, name: displayName, text: message, createdAt: Date.now() };
+  renderChatMessage(payload);
+  input.value = "";
+  const result = await channel.send({ type: "broadcast", event: "room-chat", payload });
+  if (result !== "ok") toast("Message may not have sent. Check your connection.");
+}
+$("chat-form").addEventListener("submit", sendChatMessage);
 
 function syncMembers() {
   if (!channel) return;
@@ -308,7 +350,7 @@ async function leaveRoom(returnToLobby = true) {
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   for (const id of [...peers.keys()]) closePeer(id);
   if (channel) { await supabase.removeChannel(channel); channel = null; }
-  micOn = false; updateMicUI(); members.clear(); room = null;
+  micOn = false; updateMicUI(); members.clear(); $("chat-messages").innerHTML = ""; $("chat-empty").classList.remove("hidden"); room = null;
   if (returnToLobby) showLobby();
 }
 $("leave-button").addEventListener("click", () => leaveRoom());
