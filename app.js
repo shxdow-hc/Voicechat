@@ -24,7 +24,49 @@ $("lobby").classList.add("hidden");
 usernameGate.classList.remove("hidden");
 let channel = null, room = null, isOwner = false, myRole = "member";
 let localStream = null, screenStream = null, micOn = false, peers = new Map(), members = new Map(), remoteStreams = new Map();
-let toastTimer = null, ownerElectionTimer = null;
+let toastTimer = null, ownerElectionTimer = null;\n
+let isPlatformAdmin = false;
+async function checkPlatformAdmin() {
+  if (!authUser) return;
+  const {data,error}=await supabase.from("platform_admins").select("user_id").eq("user_id",authUser.id).maybeSingle();
+  isPlatformAdmin=!error && !!data;
+  $("admin-open").classList.toggle("hidden",!isPlatformAdmin);
+}
+async function refreshAdminDashboard() {
+  if(!isPlatformAdmin || !authUser) return;
+  $("admin-message").textContent="Refreshing…";
+  const [u,r]=await Promise.all([
+    supabase.from("profiles").select("id,username,created_at").order("created_at",{ascending:false}).limit(500),
+    supabase.from("room_sessions").select("user_id,username,room_key,room_name,room_code,last_seen").limit(1000)
+  ]);
+  if(u.error || r.error){$("admin-message").textContent="Could not load dashboard. Run the latest supabase-auth.sql.";return;}
+  const live=(r.data||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<90000);
+  const groups=new Map();
+  live.forEach(x=>{if(!groups.has(x.room_key))groups.set(x.room_key,[]);groups.get(x.room_key).push(x);});
+  $("admin-user-count").textContent=(u.data||[]).length;
+  $("admin-room-count").textContent=groups.size;
+  const roomBox=$("admin-rooms");roomBox.replaceChildren();
+  if(!groups.size)roomBox.innerHTML='<p class="admin-empty">No active rooms.</p>';
+  groups.forEach(members=>{
+    const row=document.createElement("div");row.className="admin-row";
+    const left=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small");
+    title.textContent=members[0].room_name;
+    sub.textContent="Room Number: "+members[0].room_code+" · "+members.length+" member(s)";
+    left.append(title,sub);row.append(left);roomBox.append(row);
+  });
+  const userBox=$("admin-users");userBox.replaceChildren();
+  (u.data||[]).forEach(user=>{
+    const row=document.createElement("div");row.className="admin-row";
+    const left=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small"),status=document.createElement("small");
+    title.textContent=user.username;sub.textContent="Joined "+new Date(user.created_at).toLocaleDateString();
+    status.textContent=live.some(x=>x.user_id===user.id)?"In a room":"Not in a room";
+    left.append(title,sub);row.append(left,status);userBox.append(row);
+  });
+  $("admin-message").textContent="Updated just now. Offline room activity expires after 90 seconds.";
+}
+$("admin-open").addEventListener("click",async()=>{if(!isPlatformAdmin)return;$("admin-dialog").showModal();await refreshAdminDashboard();});
+$("admin-refresh").addEventListener("click",refreshAdminDashboard);
+
 
 function toast(message) {
   const el = $("toast"); el.textContent = message; el.classList.add("show");
@@ -95,7 +137,7 @@ async function startAccountLock() {
   if (accountHeartbeat) clearInterval(accountHeartbeat);
   accountHeartbeat = setInterval(async () => {
     const { data: active, error: heartbeatError } = await supabase.rpc("refresh_account_session", { p_session_id: accountSessionId });
-    if (heartbeatError || active !== true) {
+    if (room) await supabase.from("room_sessions").update({last_seen:new Date().toISOString()}).eq("user_id",userId);\n    if (heartbeatError || active !== true) {
       clearInterval(accountHeartbeat); accountHeartbeat = null;
       await supabase.auth.signOut();
       authUser = null; displayName = "";
@@ -257,7 +299,7 @@ async function enterRoom(info, create) {
   $("chat-messages").innerHTML = "";
   $("chat-empty").classList.remove("hidden");
   showRoom(); setConnection("Connecting…");
-  channel = supabase.channel("voicechat:" + info.key, { config: { presence: { key: userId }, broadcast: { self: false } } });
+  await supabase.from("room_sessions").upsert({user_id:userId,username:displayName,room_key:info.key,room_name:info.name,room_code:info.code,joined_at:new Date().toISOString(),last_seen:new Date().toISOString()},{onConflict:"user_id"});\n  channel = supabase.channel("voicechat:" + info.key, { config: { presence: { key: userId }, broadcast: { self: false } } });
   channel.on("presence", { event: "sync" }, syncMembers);
   channel.on("broadcast", { event: "signal" }, ({ payload }) => handleSignal(payload));
   channel.on("broadcast", { event: "room-chat" }, ({ payload }) => receiveChatMessage(payload));
@@ -670,7 +712,7 @@ async function leaveRoom(returnToLobby = true) {
   stopScreen();
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   for (const id of [...peers.keys()]) closePeer(id);
-  if (channel) { await supabase.removeChannel(channel); channel = null; }
+  if (room) await supabase.from("room_sessions").delete().eq("user_id",userId);\n  if (channel) { await supabase.removeChannel(channel); channel = null; }
   micOn = false; updateMicUI(); members.clear(); $("chat-messages").innerHTML = ""; $("chat-empty").classList.remove("hidden"); room = null;
   if (returnToLobby) showLobby();
 }
