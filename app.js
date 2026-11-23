@@ -241,7 +241,15 @@ $("auth-register-form").addEventListener("submit", async (event) => {
     authMessage("Account created! Please log in with your new username and password.", false);
   } catch (error) {
     const msg = String(error?.message || "");
-    authMessage(/already|duplicate|unique|username|registered/i.test(msg) ? "That username is already taken. Choose another one." : /password|weak/i.test(msg) ? "Your password was rejected. Use at least 8 characters and try again." : msg || "Registration failed. Please try again.");
+    if (/rate limit|too many requests|email.*limit/i.test(msg)) {
+      authMessage("Supabase blocked registration because its email-sending limit was reached. In Supabase, turn OFF Authentication → Sign In / Providers → Email → Confirm email. Then wait for the email limit to reset before trying again.");
+    } else if (/already|duplicate|unique|username|registered/i.test(msg)) {
+      authMessage("That username is already taken. Choose another one.");
+    } else if (/password|weak/i.test(msg)) {
+      authMessage("Your password was rejected. Use at least 8 characters and try again.");
+    } else {
+      authMessage(msg || "Registration failed. Please try again.");
+    }
   } finally {
     button.disabled = false; button.innerHTML = 'Register <span>↗</span>';
   }
