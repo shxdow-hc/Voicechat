@@ -41,6 +41,19 @@ create trigger on_auth_user_created_profile
   after insert on auth.users
   for each row execute procedure public.create_profile_for_new_user();
 
+-- Repair accounts that were created before the profile trigger was installed
+-- or while the profile table setup was incomplete.
+insert into public.profiles (id, username)
+select
+  u.id,
+  u.raw_user_meta_data ->> 'username'
+from auth.users u
+where nullif(trim(u.raw_user_meta_data ->> 'username'), '') is not null
+  and not exists (
+    select 1 from public.profiles p where p.id = u.id
+  )
+on conflict do nothing;
+
 
 -- One active browser/device session per account.
 create table if not exists public.account_sessions (
