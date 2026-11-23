@@ -65,4 +65,4 @@ Your site will be:
 
 ## 6. Private platform owner dashboard
 
-The dashboard is hidden unless the signed-in account has a row in `platform_admins`. After the owner confirms their exact registered username, run the one-time SQL statement at the bottom of `supabase-auth.sql` with that username. Do not add any other account. The dashboard lists registered usernames and active rooms; it never exposes passwords. Room activity expires after 90 seconds without a heartbeat.
+The dashboard is hidden unless the signed-in account has a row in `platform_admins`. After the owner confirms their exact registered username, run the one-time SQL statement at the bottom of `supabase-auth.sql` with that username. Do not add any other account. The dashboard lists registered usernames, account creation dates, online/offline state, active room names/codes, and room members. The owner can join or close an active room, suspend/unsuspend an account, and revoke an account session. Suspended users are blocked at login. It never exposes passwords. Room activity expires after 90 seconds without a heartbeat. Run the complete latest SQL file again after each dashboard schema update.
