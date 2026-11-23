@@ -14,8 +14,10 @@ const $ = (id) => document.getElementById(id);
 const lobby = $("lobby"), roomView = $("room");
 const userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
 sessionStorage.setItem("vc-user-id", userId);
-const displayName = sessionStorage.getItem("vc-display-name") || "Guest " + userId.slice(0, 4);
-sessionStorage.setItem("vc-display-name", displayName);
+let displayName = localStorage.getItem("vc-display-name") || "";
+const usernameGate = $("username-gate");
+if (displayName) { $("lobby").classList.remove("hidden"); usernameGate.classList.add("hidden"); }
+else { $("lobby").classList.add("hidden"); usernameGate.classList.remove("hidden"); }
 let channel = null, room = null, isOwner = false, myRole = "member";
 let localStream = null, screenStream = null, micOn = false, peers = new Map(), members = new Map(), remoteStreams = new Map();
 let toastTimer = null;
@@ -46,6 +48,21 @@ function requireConfig() {
   $("lobby-message").textContent = "";
   return true;
 }
+$("username-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const chosen = $("username-input").value.trim().replace(/\\s+/g, " ");
+  if (chosen.length < 2 || chosen.length > 24) {
+    $("username-message").textContent = "Username must be between 2 and 24 characters.";
+    return;
+  }
+  displayName = chosen;
+  localStorage.setItem("vc-display-name", displayName);
+  usernameGate.classList.add("hidden");
+  $("lobby").classList.remove("hidden");
+  $("username-message").textContent = "";
+});
+if (displayName) $("username-input").value = displayName;
+
 function roomIdentity(name, code) {
   return { name: name.trim(), code: code.trim(), key: safeKey(name, code) };
 }
