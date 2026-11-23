@@ -95,18 +95,30 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
     <section id="username-gate" class="lobby username-gate">
       <div class="hero-copy">
         <div class="eyebrow"><span class="eyebrow-line"></span> WELCOME TO HCUNION</div>
-        <h1>First, choose<br><span>your username.</span></h1>
-        <p class="hero-subtitle">Pick any name you want. This is how people in your rooms will see you.</p>
+        <h1>Your room.<br><span>Your people.</span></h1>
+        <p class="hero-subtitle">Log in or create your HCunion account to join voice rooms.</p>
       </div>
-      <article class="entry-card username-card">
+      <article class="entry-card username-card auth-card">
         <div class="card-icon purple-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
-        <h2>Choose a username</h2>
-        <p>You can use any username between 2 and 24 characters.</p>
-        <form id="username-form">
-          <label for="username-input">Your username</label>
-          <input id="username-input" maxlength="24" minlength="2" autocomplete="nickname" placeholder="Enter a username" required>
-          <button class="primary-button" type="submit">Continue <span>↗</span></button>
-        </form>
+        <div id="auth-login-panel">
+          <h2>Welcome back</h2><p>Log in with your username and password.</p>
+          <form id="auth-login-form">
+            <label for="login-username">Username</label><input id="login-username" maxlength="20" autocomplete="username" placeholder="Your username" required>
+            <label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" placeholder="Your password" required>
+            <button class="primary-button" type="submit">Log in <span>↗</span></button>
+          </form>
+          <p class="auth-switch-copy">New here? <button id="show-register" class="auth-switch" type="button">Create an account</button></p>
+        </div>
+        <div id="auth-register-panel" class="hidden">
+          <h2>Create account</h2><p>Choose a unique username and make a password.</p>
+          <form id="auth-register-form">
+            <label for="register-username">Username</label><input id="register-username" minlength="3" maxlength="20" autocomplete="username" placeholder="3–20 letters, numbers, or _" required>
+            <label for="register-password">Password</label><input id="register-password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required>
+            <label for="register-confirm">Confirm password</label><input id="register-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Enter the password again" required>
+            <button class="primary-button" type="submit">Register <span>↗</span></button>
+          </form>
+          <p class="auth-switch-copy">Already have an account? <button id="show-login" class="auth-switch" type="button">Log in</button></p>
+        </div>
         <p id="username-message" class="message" role="status"></p>
       </article>
     </section>
@@ -186,7 +198,7 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
     </form>
   </dialog>
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./app.js?v=discord-pfps-2"></script>
+  <script type="module" src="./app.js?v=username-auth-1"></script>
 </body>
 
 <style id="discord-profile-polish">
@@ -230,4 +242,8 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
 .voice-person.speaking .voice-person-avatar{outline:2px solid #39cf59}
 .voice-stage .stage-content{z-index:1;pointer-events:none;opacity:.12}
 @media(max-width:760px){.voice-people{inset:8px;gap:7px}.voice-person{width:90px;padding:7px 5px}.voice-person-avatar{width:52px;height:52px}}
+</style>
+
+<style id="username-auth-style">
+.auth-card h2{margin-bottom:7px}.auth-card form{display:flex;flex-direction:column}.auth-card input{width:100%;height:43px;border:1px solid #484848;background:#171717;border-radius:7px;padding:0 12px;color:#fff;font:inherit;font-size:12px;margin:0 0 14px}.auth-card input:focus{outline:2px solid #35c65a;outline-offset:1px}.auth-switch-copy{text-align:center;color:#aaa;font-size:11px;margin:18px 0 0!important}.auth-switch{border:0;background:none;color:#58d66e;font:inherit;font-weight:800;cursor:pointer;text-decoration:underline}.auth-card .message{min-height:20px}.auth-card .primary-button{width:100%}
 </style>
