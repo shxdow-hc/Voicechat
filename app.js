@@ -12,14 +12,14 @@ const supabase = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : nu
 
 const $ = (id) => document.getElementById(id);
 const lobby = $("lobby"), roomView = $("room");
-const userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
-sessionStorage.setItem("vc-user-id", userId);
-let displayName = localStorage.getItem("vc-display-name") || "";
+let userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
+let authUser = null;
+let displayName = "";
 let avatarData = localStorage.getItem("vc-avatar") || "";
 let pendingAvatar = avatarData;
 const usernameGate = $("username-gate");
-if (displayName) { $("lobby").classList.remove("hidden"); usernameGate.classList.add("hidden"); }
-else { $("lobby").classList.add("hidden"); usernameGate.classList.remove("hidden"); }
+$("lobby").classList.add("hidden");
+usernameGate.classList.remove("hidden");
 let channel = null, room = null, isOwner = false, myRole = "member";
 let localStream = null, screenStream = null, micOn = false, peers = new Map(), members = new Map(), remoteStreams = new Map();
 let toastTimer = null, ownerElectionTimer = null;
@@ -71,20 +71,96 @@ function requireConfig() {
   $("lobby-message").textContent = "";
   return true;
 }
-$("username-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const chosen = $("username-input").value.trim().replace(/\s+/g, " ");
-  if (chosen.length < 2 || chosen.length > 24) {
-    $("username-message").textContent = "Username must be between 2 and 24 characters.";
+function authMessage(message, isError = true) {
+  const el = $("username-message");
+  el.textContent = message;
+  el.style.color = isError ? "#ff9bad" : "#68dc91";
+}
+function showAuthPanel(register) {
+  $("auth-login-panel").classList.toggle("hidden", register);
+  $("auth-register-panel").classList.toggle("hidden", !register);
+  authMessage("");
+}
+$("show-register").addEventListener("click", () => showAuthPanel(true));
+$("show-login").addEventListener("click", () => showAuthPanel(false));
+function usernameEmail(username) {
+  return username.trim().toLowerCase() + "@users.hcunion.invalid";
+}
+async function loadAccount(user) {
+  if (!user) return;
+  const { data, error } = await supabase.from("profiles").select("username").eq("id", user.id).single();
+  if (error || !data?.username) {
+    authMessage("Your account profile could not be loaded. Check the Supabase SQL setup in SETUP.md.");
     return;
   }
-  displayName = chosen;
+  authUser = user;
+  userId = user.id;
+  sessionStorage.setItem("vc-user-id", userId);
+  displayName = data.username;
   localStorage.setItem("vc-display-name", displayName);
+  updateSelfProfileUI();
+  updateProfilePreview();
   usernameGate.classList.add("hidden");
   $("lobby").classList.remove("hidden");
-  $("username-message").textContent = "";
+  authMessage("", false);
+}
+$("auth-register-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!configured) { authMessage("Account registration needs the Supabase setup. See SETUP.md."); return; }
+  const username = $("register-username").value.trim();
+  const password = $("register-password").value;
+  const confirm = $("register-confirm").value;
+  if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) { authMessage("Use 3–20 letters, numbers, or underscores for your username."); return; }
+  if (password.length < 8) { authMessage("Your password must be at least 8 characters."); return; }
+  if (password !== confirm) { authMessage("The passwords don't match. Check them and try again."); return; }
+  const button = $("auth-register-form").querySelector("button[type=submit]");
+  button.disabled = true; button.textContent = "Creating account…";
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: usernameEmail(username), password,
+      options: { data: { username } }
+    });
+    if (error) throw error;
+    if (!data.session) {
+      authMessage("Account created, but Supabase email confirmation is still on. Turn it off as explained in SETUP.md, then register again.");
+      return;
+    }
+    await loadAccount(data.user);
+    if (authUser) toast("Your HCunion account is ready!");
+  } catch (error) {
+    const msg = String(error?.message || "");
+    authMessage(/already|duplicate|unique/i.test(msg) ? "That username is already taken. Choose another one." : msg || "Couldn't create your account.");
+  } finally {
+    button.disabled = false; button.innerHTML = 'Register <span>↗</span>';
+  }
 });
-if (displayName) $("username-input").value = displayName;
+$("auth-login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!configured) { authMessage("Account login needs the Supabase setup. See SETUP.md."); return; }
+  const username = $("login-username").value.trim();
+  const password = $("login-password").value;
+  if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) { authMessage("Enter a valid username."); return; }
+  const button = $("auth-login-form").querySelector("button[type=submit]");
+  button.disabled = true; button.textContent = "Logging in…";
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: usernameEmail(username), password });
+    if (error) throw error;
+    await loadAccount(data.user);
+    if (authUser) toast("Welcome back, " + displayName + "!");
+  } catch (error) {
+    authMessage("Username or password is incorrect.");
+  } finally {
+    button.disabled = false; button.innerHTML = 'Log in <span>↗</span>';
+  }
+});
+if (configured) {
+  supabase.auth.getSession().then(async ({ data, error }) => {
+    if (error) { authMessage("Couldn't check your login session. Please log in again."); return; }
+    if (data.session?.user) await loadAccount(data.session.user);
+  });
+} else {
+  authMessage("Accounts are not configured yet. The owner must finish the Supabase setup in SETUP.md.");
+}
 updateProfilePreview();
 
 function roomIdentity(name, code) {
