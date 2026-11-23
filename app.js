@@ -191,11 +191,12 @@ $("mic-button").addEventListener("click", toggleMic);
 function makePeer(id) {
   const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] });
   pc.onicecandidate = (event) => { if (event.candidate) sendSignal(id, { candidate: event.candidate }); };
-  pc.ontrack = (event) => attachRemote(id, event.streams[0]);
+  pc.ontrack = (event) => { const stream = event.streams?.[0] || new MediaStream([event.track]); attachRemote(id, stream); };
   pc.onconnectionstatechange = () => { if (["failed","closed"].includes(pc.connectionState)) closePeer(id); };
   peers.set(id, pc);
   if (localStream) for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
-  if (screenStream) for (const track of screenStream.getTracks()) pc.addTrack(track, screenStream);
+  // Pre-negotiate a video transceiver so screen sharing needs no renegotiation.
+  pc.addTransceiver("video", { direction: "sendrecv" });
   return pc;
 }
 async function addLocalAudio(pc) {
@@ -228,31 +229,72 @@ async function handleSignal(p) {
 }
 function attachRemote(id, stream) {
   remoteStreams.set(id, stream);
-  let audio = document.getElementById("remote-" + id);
-  if (!audio) { audio = document.createElement("audio"); audio.id = "remote-" + id; audio.autoplay = true; document.body.append(audio); }
-  audio.srcObject = stream; audio.play().catch(() => {});
+  const audioTracks = stream.getAudioTracks();
+  if (audioTracks.length) {
+    let audio = document.getElementById("remote-audio-" + id);
+    if (!audio) { audio = document.createElement("audio"); audio.id = "remote-audio-" + id; audio.autoplay = true; audio.playsInline = true; document.body.append(audio); }
+    audio.srcObject = new MediaStream(audioTracks);
+    audio.play().catch(() => {});
+  }
+  const videoTrack = stream.getVideoTracks()[0];
+  if (videoTrack) {
+    let card = document.getElementById("remote-screen-" + id);
+    if (!card) {
+      card = document.createElement("div"); card.className = "remote-screen-card"; card.id = "remote-screen-" + id;
+      const label = document.createElement("div"); label.className = "screen-top";
+      const who = document.createElement("span"); who.textContent = (members.get(id)?.name || "A member") + " is sharing";
+      label.append(who);
+      const video = document.createElement("video"); video.autoplay = true; video.playsInline = true;
+      card.append(label, video); $("remote-screens").append(card);
+    }
+    const video = card.querySelector("video");
+    video.srcObject = new MediaStream([videoTrack]);
+    $("screen-area").classList.remove("hidden");
+    video.play().catch(() => {});
+    videoTrack.addEventListener("ended", () => {
+      card.remove();
+      if (!$("remote-screens").children.length && !screenStream) $("screen-area").classList.add("hidden");
+    }, { once: true });
+  }
 }
 function closePeer(id) {
   const pc = peers.get(id); if (pc) pc.close();
   peers.delete(id); remoteStreams.delete(id);
   document.getElementById("remote-" + id)?.remove();
+  document.getElementById("remote-audio-" + id)?.remove();
+  document.getElementById("remote-screen-" + id)?.remove();
+  if (!$("remote-screens").children.length && !screenStream) $("screen-area").classList.add("hidden");
 }
 
 async function shareScreen() {
   try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-    $("screen-video").srcObject = screenStream; $("screen-area").classList.remove("hidden");
-    $("screen-button").classList.add("active"); $("screen-button").querySelector("small").textContent = "Stop share";
-    for (const [id, pc] of peers) {
-      const track = screenStream.getVideoTracks()[0]; pc.addTrack(track, screenStream);
-      const offer = await pc.createOffer(); await pc.setLocalDescription(offer); sendSignal(id, { description: pc.localDescription });
+    if (!navigator.mediaDevices?.getDisplayMedia) { toast("Screen sharing isn't supported in this browser."); return; }
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
+    const track = screenStream.getVideoTracks()[0];
+    if (!track) throw new Error("No screen video track was created.");
+    $("screen-video").srcObject = screenStream;
+    $("screen-area").classList.remove("hidden");
+    $("screen-button").classList.add("active");
+    $("screen-button").querySelector("small").textContent = "Stop share";
+    for (const pc of peers.values()) {
+      const sender = pc.getSenders().find(s => s.track?.kind === "video");
+      if (sender) await sender.replaceTrack(track);
     }
-    screenStream.getVideoTracks()[0].addEventListener("ended", stopScreen);
-  } catch (err) { if (err.name !== "NotAllowedError") toast("Screen sharing isn't available in this browser."); }
+    track.addEventListener("ended", stopScreen, { once: true });
+    toast("You're sharing your screen.");
+  } catch (err) {
+    screenStream?.getTracks().forEach(t => t.stop()); screenStream = null;
+    if (err.name !== "NotAllowedError") toast("Couldn't start screen sharing. Check browser permissions.");
+  }
 }
 function stopScreen() {
-  screenStream?.getTracks().forEach(t => t.stop()); screenStream = null;
-  $("screen-video").srcObject = null; $("screen-area").classList.add("hidden");
+  const oldStream = screenStream; screenStream = null;
+  if (oldStream) {
+    for (const pc of peers.values()) { const sender = pc.getSenders().find(s => s.track?.kind === "video"); if (sender) sender.replaceTrack(null).catch(() => {}); }
+    oldStream.getTracks().forEach(t => t.stop());
+  }
+  $("screen-video").srcObject = null;
+  if (!$("remote-screens").children.length) $("screen-area").classList.add("hidden");
   $("screen-button").classList.remove("active"); $("screen-button").querySelector("small").textContent = "Share screen";
 }
 $("screen-button").addEventListener("click", () => screenStream ? stopScreen() : shareScreen());
