@@ -30,6 +30,9 @@ begin
   insert into public.profiles (id, username)
   values (new.id, new.raw_user_meta_data ->> 'username');
   return new;
+exception
+  when unique_violation then
+    raise exception 'Username already taken';
 end;
 $$;
 
