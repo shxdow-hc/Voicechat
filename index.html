@@ -89,7 +89,7 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="./"><span class="brand-mark"><span></span><span></span><span></span></span><span>HC<span class="brand-accent">union</span></span></a>
-      <div class="topbar-right"><span class="status-dot"></span><span id="connection-label">Not connected</span></div>
+      <div class="topbar-right"><button id="profile-open" class="small-button profile-open" type="button">Edit profile</button><span class="status-dot"></span><span id="connection-label">Not connected</span></div>
     </header>
 
     <section id="username-gate" class="lobby username-gate">
@@ -153,7 +153,7 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
       <section class="room-main">
         <header class="room-header"><div><div class="breadcrumb">VOICE ROOMS <span>/</span> <b id="room-title">Room</b></div><h2 id="room-heading">Room</h2></div><div class="room-header-actions"><span class="room-live"><i></i> LIVE</span><button id="chat-toggle" class="small-button" type="button" aria-expanded="false">Chat</button><button id="copy-invite" class="small-button">Copy invite</button><button id="room-menu-button" class="icon-button" aria-label="Room options">•••</button></div></header>
         <div class="room-content">
-          <div class="voice-stage"><div class="stage-glow"></div><div class="stage-content"><div class="voice-orb"><div class="orb-inner"><span class="orb-bars"><i></i><i></i><i></i><i></i><i></i></span></div></div><h3 id="stage-title">You're in the room</h3><p id="stage-subtitle">Turn on your microphone to start talking.</p><div class="stage-pills"><span><b id="stage-member-count">1</b> in room</span><span>End-to-end browser connection</span></div></div></div>
+          <div class="voice-stage"><div class="stage-glow"></div><div id="voice-people" class="voice-people" aria-label="People in this voice room"></div><div class="stage-content"><div class="voice-orb"><div class="orb-inner"><span class="orb-bars"><i></i><i></i><i></i><i></i><i></i></span></div></div><h3 id="stage-title">You're in the room</h3><p id="stage-subtitle">Turn on your microphone to start talking.</p><div class="stage-pills"><span><b id="stage-member-count">1</b> in room</span><span>End-to-end browser connection</span></div></div></div>
           <div id="screen-area" class="screen-area hidden"><div class="screen-top"><span><i></i> LIVE SCREEN</span><button id="stop-screen" class="text-button">Stop sharing</button></div><video id="screen-video" autoplay playsinline muted></video><div id="remote-screens" class="remote-screens"></div></div>
           <section id="room-chat" class="room-chat hidden" aria-label="Room chat">
             <header class="room-chat-header"><div><strong>Room chat</strong><span>Messages are visible to people in this room</span></div><span class="chat-live-dot">LIVE</span></header>
@@ -171,7 +171,45 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
 
   <dialog id="settings-dialog" class="modal"><form method="dialog"><button class="modal-close" aria-label="Close">×</button><div class="modal-kicker">PREFERENCES</div><h2>Audio settings</h2><p>Choose which microphone your browser should use.</p><label for="audio-input">Microphone</label><select id="audio-input"><option value="">Default microphone</option></select><button class="primary-button modal-save" value="close">Done</button></form></dialog>
   <dialog id="manage-dialog" class="modal"><form method="dialog"><button class="modal-close" aria-label="Close">×</button><div class="modal-kicker">ROOM MANAGEMENT</div><h2>Room settings</h2><p>Owner controls for this room.</p><div class="manage-actions"><button id="close-room-button" class="danger-button" type="button">Close room for everyone</button></div><p class="fine-print">Only the room owner can close the room.</p><button class="secondary-button modal-save" value="close">Done</button></form></dialog>
+  <dialog id="profile-dialog" class="modal profile-dialog">
+    <form id="profile-form" method="dialog">
+      <button class="modal-close" type="button" id="profile-close" aria-label="Close">×</button>
+      <div class="modal-kicker">YOUR HCUNION PROFILE</div>
+      <h2>Customize your profile</h2>
+      <p>Your profile picture appears beside your messages and in the voice room.</p>
+      <div class="profile-preview"><div class="avatar profile-avatar" id="profile-preview-avatar">G</div><div><strong id="profile-preview-name">Guest</strong><small>Profile picture</small></div></div>
+      <label for="avatar-file" class="avatar-upload-label">Choose a profile picture</label>
+      <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+      <button id="avatar-remove" class="secondary-button" type="button">Remove picture</button>
+      <button class="primary-button modal-save" type="submit">Save profile</button>
+      <p id="profile-message" class="message" role="status"></p>
+    </form>
+  </dialog>
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./app.js?v=hcunion1"></script>
+  <script type="module" src="./app.js?v=profile-avatars1"></script>
 </body>
 </html>
+<style id="profile-avatar-theme">
+.profile-open{color:#f3f3f3!important;border-color:#4b4b4b!important;background:#303030!important}
+.profile-preview{display:flex;align-items:center;gap:13px;padding:14px;background:#303030;border:1px solid #484848;border-radius:8px;margin:14px 0 18px}
+.profile-preview>div:last-child{display:flex;flex-direction:column;gap:5px}.profile-preview strong{font-size:13px}.profile-preview small{font-size:10px;color:#aaa}
+.profile-avatar{width:58px;height:58px;border-radius:50%;font-size:17px;overflow:hidden}
+.avatar img,.profile-avatar img,.chat-avatar img,.voice-person-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.avatar,.you-avatar{overflow:hidden;border-radius:50%}
+.avatar-upload-label{display:block;color:#eee;font-size:11px;font-weight:700;margin:0 0 8px}
+#avatar-file{display:block;width:100%;height:auto;margin:0 0 14px;color:#ccc;font:inherit;font-size:11px}
+#avatar-file::file-selector-button{background:#333;color:#fff;border:1px solid #555;border-radius:5px;padding:8px 10px;margin-right:10px}
+.profile-dialog .secondary-button{width:100%;margin-bottom:10px}
+.profile-dialog .primary-button{width:100%}
+.chat-message{display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:9px;align-items:start}
+.chat-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#383838;color:#fff;font-size:10px;font-weight:800;overflow:hidden}
+.chat-message-content{min-width:0}
+.voice-people{position:absolute;inset:15px;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:14px;z-index:2}
+.voice-person{width:112px;display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 7px;background:#242424;border:1px solid #454545;border-radius:8px}
+.voice-person-avatar{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:#3b3b3b;color:#fff;font-weight:800;font-size:18px;overflow:hidden}
+.voice-person-name{max-width:100%;font-size:10px;color:#f2f2f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.voice-person.speaking{border-color:#39cf59;box-shadow:0 0 0 1px #39cf5933}
+.voice-person.speaking .voice-person-avatar{outline:2px solid #39cf59}
+.voice-stage .stage-content{z-index:1;pointer-events:none;opacity:.12}
+@media(max-width:760px){.voice-people{inset:8px;gap:7px}.voice-person{width:90px;padding:7px 5px}.voice-person-avatar{width:52px;height:52px}}
+</style>
