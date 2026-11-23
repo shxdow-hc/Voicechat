@@ -37,9 +37,13 @@ function showLobby(message = "") {
 }
 function requireConfig() {
   if (!configured) {
-    $("lobby-message").textContent = "The website is published, but live rooms need Supabase setup. Follow SETUP.md in the GitHub repository.";
+    const message = "Live rooms aren't enabled yet. Supabase setup is required first — open SETUP.md in the Voicechat GitHub repo and add your Project URL and anon key to app.js.";
+    $("lobby-message").textContent = message;
+    toast("Setup needed: connect the Supabase backend before creating or joining rooms.");
+    setConnection("Backend not configured");
     return false;
   }
+  $("lobby-message").textContent = "";
   return true;
 }
 function roomIdentity(name, code) {
