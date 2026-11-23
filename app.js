@@ -15,6 +15,8 @@ const lobby = $("lobby"), roomView = $("room");
 const userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
 sessionStorage.setItem("vc-user-id", userId);
 let displayName = localStorage.getItem("vc-display-name") || "";
+let avatarData = localStorage.getItem("vc-avatar") || "";
+let pendingAvatar = avatarData;
 const usernameGate = $("username-gate");
 if (displayName) { $("lobby").classList.remove("hidden"); usernameGate.classList.add("hidden"); }
 else { $("lobby").classList.add("hidden"); usernameGate.classList.remove("hidden"); }
@@ -31,6 +33,27 @@ function setConnection(text, online = false) {
   $("connection-label").previousElementSibling.style.background = online ? "var(--green)" : "#777487";
 }
 function initials(name) { return name.trim().split(/\s+/).slice(0,2).map(x => x[0]).join("").toUpperCase() || "G"; }
+function setAvatar(element, avatar, name) {
+  if (!element) return;
+  element.replaceChildren();
+  if (avatar) {
+    const img = document.createElement("img");
+    img.src = avatar; img.alt = name + " profile picture";
+    element.append(img);
+  } else element.textContent = initials(name || "Guest");
+}
+function updateProfilePreview() {
+  $("profile-preview-name").textContent = displayName || "Guest";
+  setAvatar($("profile-preview-avatar"), pendingAvatar, displayName || "Guest");
+}
+function updateSelfProfileUI() {
+  $("self-name").textContent = displayName;
+  setAvatar($("self-avatar"), avatarData, displayName);
+}
+function trackSelf() {
+  if (!channel) return;
+  return channel.track({ id: userId, name: displayName, avatar: avatarData, role: myRole, joinedAt: Date.now(), micOn });
+}
 function safeKey(name, code) { return (name.trim().toLowerCase() + "-" + code.trim()).replace(/[^a-z0-9-]/g,"-").slice(0,80); }
 function showRoom() { lobby.classList.add("hidden"); roomView.classList.remove("hidden"); }
 function showLobby(message = "") {
@@ -62,6 +85,7 @@ $("username-form").addEventListener("submit", (event) => {
   $("username-message").textContent = "";
 });
 if (displayName) $("username-input").value = displayName;
+updateProfilePreview();
 
 function roomIdentity(name, code) {
   return { name: name.trim(), code: code.trim(), key: safeKey(name, code) };
@@ -94,8 +118,7 @@ async function enterRoom(info, create) {
   $("sidebar-room-name").textContent = info.name;
   $("room-title").textContent = info.name;
   $("room-heading").textContent = info.name;
-  $("self-name").textContent = displayName;
-  $("self-avatar").textContent = initials(displayName);
+  updateSelfProfileUI();
   $("self-role").textContent = isOwner ? "Room owner" : "Member";
   $("room-menu-button").classList.toggle("hidden", !isOwner);
   $("chat-messages").innerHTML = "";
@@ -122,7 +145,7 @@ async function enterRoom(info, create) {
         return;
       }
       setConnection("Connected", true);
-      await channel.track({ id: userId, name: displayName, role: myRole, joinedAt: Date.now(), micOn: false });
+      await trackSelf();
       syncMembers();
       if (create) toast("Room created. Share the room name and code.");
     } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -139,6 +162,11 @@ function renderChatMessage(message) {
   $("chat-empty").classList.add("hidden");
   const item = document.createElement("article");
   item.className = "chat-message";
+  const avatar = document.createElement("div");
+  avatar.className = "chat-avatar";
+  setAvatar(avatar, message.avatar || "", message.name || "Guest");
+  const content = document.createElement("div");
+  content.className = "chat-message-content";
   const heading = document.createElement("div");
   heading.className = "chat-message-heading";
   const name = document.createElement("strong");
@@ -148,7 +176,8 @@ function renderChatMessage(message) {
   heading.append(name, time);
   const body = document.createElement("p");
   body.textContent = message.text;
-  item.append(heading, body);
+  content.append(heading, body);
+  item.append(avatar, content);
   list.append(item);
   while (list.children.length > 100) list.firstElementChild.remove();
   list.scrollTop = list.scrollHeight;
@@ -162,13 +191,70 @@ async function sendChatMessage(event) {
   const input = $("chat-input");
   const message = input.value.trim();
   if (!message || !channel || message.length > 1000) return;
-  const payload = { from: userId, name: displayName, text: message, createdAt: Date.now() };
+  const payload = { from: userId, name: displayName, avatar: avatarData, text: message, createdAt: Date.now() };
   renderChatMessage(payload);
   input.value = "";
   const result = await channel.send({ type: "broadcast", event: "room-chat", payload });
   if (result !== "ok") toast("Message may not have sent. Check your connection.");
 }
-$("chat-form").addEventListener("submit", sendChatMessage);
+
+function openProfileDialog() {
+  pendingAvatar = avatarData;
+  $("avatar-file").value = "";
+  $("profile-message").textContent = "";
+  updateProfilePreview();
+  $("profile-dialog").showModal();
+}
+$("profile-open").addEventListener("click", openProfileDialog);
+$("profile-close").addEventListener("click", () => $("profile-dialog").close());
+$("avatar-file").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!["image/png","image/jpeg","image/webp","image/gif"].includes(file.type)) {
+    $("profile-message").textContent = "Choose a PNG, JPG, WEBP, or GIF image.";
+    event.target.value = ""; return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    $("profile-message").textContent = "That image is too large. Choose one under 8 MB.";
+    event.target.value = ""; return;
+  }
+  try {
+    const source = await createImageBitmap(file);
+    const scale = Math.min(1, 256 / Math.max(source.width, source.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(source.width * scale));
+    canvas.height = Math.max(1, Math.round(source.height * scale));
+    canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+    source.close?.();
+    pendingAvatar = canvas.toDataURL("image/webp", 0.78);
+    updateProfilePreview();
+    $("profile-message").textContent = "Preview updated. Save your profile to apply it.";
+  } catch {
+    $("profile-message").textContent = "Couldn't read that image. Try a different picture.";
+  }
+});
+$("avatar-remove").addEventListener("click", () => {
+  pendingAvatar = "";
+  $("avatar-file").value = "";
+  updateProfilePreview();
+  $("profile-message").textContent = "Picture removed. Save your profile to apply the change.";
+});
+$("profile-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  avatarData = pendingAvatar;
+  try {
+    if (avatarData) localStorage.setItem("vc-avatar", avatarData);
+    else localStorage.removeItem("vc-avatar");
+  } catch {
+    $("profile-message").textContent = "This picture couldn't be saved on this device. Try a smaller image.";
+    return;
+  }
+  updateSelfProfileUI();
+  if (channel) await trackSelf();
+  $("profile-dialog").close();
+  toast("Your profile picture was updated.");
+});
+\n$("chat-form").addEventListener("submit", sendChatMessage);
 $("chat-toggle").addEventListener("click", () => {
   const panel = $("room-chat");
   const opening = panel.classList.contains("hidden");
@@ -183,7 +269,7 @@ function syncMembers() {
   const state = channel.presenceState(), next = new Map();
   for (const [id, entries] of Object.entries(state)) {
     const p = entries[0] || {};
-    next.set(id, { id, name: p.name || "Guest", role: p.role || "member", micOn: !!p.micOn });
+    next.set(id, { id, name: p.name || "Guest", avatar: p.avatar || "", role: p.role || "member", micOn: !!p.micOn });
   }
   members = next;
 
@@ -221,7 +307,7 @@ function syncMembers() {
       localStorage.setItem("vc-owner-" + room.key, userId);
       $("self-role").textContent = "Room owner";
       $("room-menu-button").classList.remove("hidden");
-      await channel.track({ id: userId, name: displayName, role: "owner", joinedAt: Date.now(), micOn });
+      await trackSelf();
       toast("The previous owner left. You're the new room owner!");
     }, 1800);
   }
@@ -238,7 +324,7 @@ function renderMembers() {
   const list = $("member-list"); list.innerHTML = "";
   for (const m of members.values()) {
     const row = document.createElement("div"); row.className = "member";
-    const av = document.createElement("div"); av.className = "avatar"; av.textContent = initials(m.name);
+    const av = document.createElement("div"); av.className = "avatar"; setAvatar(av, m.avatar, m.name);
     const meta = document.createElement("div"); meta.className = "member-meta";
     const strong = document.createElement("strong"); strong.textContent = m.name + (m.id === userId ? " (you)" : "");
     const small = document.createElement("small"); small.textContent = m.role === "owner" ? "Room owner" : m.role === "moderator" ? "Moderator" : "Member";
@@ -250,6 +336,24 @@ function renderMembers() {
       tools.addEventListener("click", () => memberActions(m)); row.append(tools);
     }
     list.append(row);
+  }
+  renderVoicePeople();
+}
+function renderVoicePeople() {
+  const stage = $("voice-people");
+  if (!stage) return;
+  stage.replaceChildren();
+  for (const m of members.values()) {
+    const tile = document.createElement("div");
+    tile.className = "voice-person" + (m.micOn ? " speaking" : "");
+    const avatar = document.createElement("div");
+    avatar.className = "voice-person-avatar";
+    setAvatar(avatar, m.avatar, m.name);
+    const name = document.createElement("div");
+    name.className = "voice-person-name";
+    name.textContent = m.name + (m.id === userId ? " (you)" : "");
+    tile.append(avatar, name);
+    stage.append(tile);
   }
 }
 function memberActions(member) {
@@ -272,13 +376,13 @@ function promoteMember(target) {
 function handleRole(p) {
   if (p.target !== userId || p.role !== "moderator") return;
   myRole = "moderator"; $("self-role").textContent = "Moderator"; toast("You are now a moderator.");
-  channel.track({ id: userId, name: displayName, role: myRole, joinedAt: Date.now(), micOn });
+  trackSelf();
 }
 async function handleModeration(p) {
   if (p.target !== userId || p.action !== "mute") return;
   micOn = false;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
-  updateMicUI(); await channel.track({ id: userId, name: displayName, role: myRole, joinedAt: Date.now(), micOn: false });
+  updateMicUI(); await trackSelf();
   toast("The room team muted your microphone.");
 }
 
@@ -295,7 +399,7 @@ async function toggleMic() {
       localStream?.getAudioTracks().forEach(t => t.enabled = false); micOn = false;
     }
     updateMicUI();
-    await channel.track({ id: userId, name: displayName, role: myRole, joinedAt: Date.now(), micOn });
+    await trackSelf();
   } catch (err) { toast(err.name === "NotAllowedError" ? "Allow microphone access in your browser to talk." : "Couldn't start the microphone."); }
 }
 function updateMicUI() {
