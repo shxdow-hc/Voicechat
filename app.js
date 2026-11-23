@@ -254,7 +254,7 @@ $("profile-form").addEventListener("submit", async (event) => {
   $("profile-dialog").close();
   toast("Your profile picture was updated.");
 });
-\n$("chat-form").addEventListener("submit", sendChatMessage);
+$("chat-form").addEventListener("submit", sendChatMessage);
 $("chat-toggle").addEventListener("click", () => {
   const panel = $("room-chat");
   const opening = panel.classList.contains("hidden");
