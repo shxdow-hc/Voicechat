@@ -16,13 +16,11 @@ The GitHub Pages site is the frontend only. Live rooms need a Supabase project f
 
 In Supabase, open **Database → Replication** or **Realtime** settings and make sure Realtime is enabled for your project. This prototype uses Supabase Realtime channels with presence and broadcast. The room channel is public so browsers can exchange WebRTC signaling messages.
 
-## 3. Enable username/password accounts
+## 3. Enable password-free guest access
 
-Run the latest full SQL in `supabase-auth.sql` in the Supabase **SQL Editor** (run it again if you already ran the earlier version). It creates the profiles table, enforces case-insensitive unique usernames, and adds a database-backed one-active-session lock per account.
+In Supabase, open **Authentication → Sign In / Providers** (the exact menu label may vary) and enable **Anonymous Sign-Ins**. This lets the site create a temporary guest identity automatically; visitors do not enter an email, username, or password and do not register accounts.
 
-Then open **Authentication → Providers → Email** and turn **Confirm email OFF**. This app uses username/password accounts rather than collecting email addresses, so email confirmation cannot be completed. Keep password security enabled. The app maps each username to an internal, non-deliverable email address for Supabase Auth; users only enter their username and password.
-
-After the SQL and Auth setting are in place, new visitors see **Log in** and **Register**. Registration checks that both password entries match, requires at least 8 characters, and the database rejects usernames that are already taken (including capitalization variants). After registration, the user is returned to the login screen and must log in. Each account can be active in only one browser tab/device at a time. A second login is rejected while the first session is active; if a browser crashes or loses connection without releasing its lock, it expires after about 90 seconds. Users can use the **Log out** button to end their session.
+Run the latest full SQL in `supabase-auth.sql` in the Supabase **SQL Editor** so the room-presence table and its policies are installed. The app uses each temporary guest identity only to authorize that visitor’s own room-presence record. Display names and profile pictures are stored in that browser and can be changed with **Edit profile**. A fresh guest identity is created each time the site is opened; there is no account login or account logout.
 
 ## 4. Publish with GitHub Pages
 
