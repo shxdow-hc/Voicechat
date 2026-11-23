@@ -137,7 +137,8 @@ async function startAccountLock() {
   if (accountHeartbeat) clearInterval(accountHeartbeat);
   accountHeartbeat = setInterval(async () => {
     const { data: active, error: heartbeatError } = await supabase.rpc("refresh_account_session", { p_session_id: accountSessionId });
-    if (room) await supabase.from("room_sessions").update({last_seen:new Date().toISOString()}).eq("user_id",userId);\n    if (heartbeatError || active !== true) {
+    if (room) await supabase.from("room_sessions").update({last_seen:new Date().toISOString()}).eq("user_id",userId);
+    if (heartbeatError || active !== true) {
       clearInterval(accountHeartbeat); accountHeartbeat = null;
       await supabase.auth.signOut();
       authUser = null; displayName = "";
@@ -179,6 +180,7 @@ async function loadAccount(user) {
     return;
   }
   authUser = user;
+  await checkPlatformAdmin();
   userId = user.id;
   sessionStorage.setItem("vc-user-id", userId);
   displayName = data.username;
@@ -712,7 +714,8 @@ async function leaveRoom(returnToLobby = true) {
   stopScreen();
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   for (const id of [...peers.keys()]) closePeer(id);
-  if (room) await supabase.from("room_sessions").delete().eq("user_id",userId);\n  if (channel) { await supabase.removeChannel(channel); channel = null; }
+  if (room) await supabase.from("room_sessions").delete().eq("user_id",userId);
+  if (channel) { await supabase.removeChannel(channel); channel = null; }
   micOn = false; updateMicUI(); members.clear(); $("chat-messages").innerHTML = ""; $("chat-empty").classList.remove("hidden"); room = null;
   if (returnToLobby) showLobby();
 }
