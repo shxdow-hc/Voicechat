@@ -89,7 +89,7 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="./"><span class="brand-mark"><span></span><span></span><span></span></span><span>HC<span class="brand-accent">union</span></span></a>
-      <div class="topbar-right"><button id="account-logout" class="small-button" type="button">Log out</button><button id="profile-open" class="small-button profile-open" type="button">Edit profile</button><span class="status-dot"></span><span id="connection-label">Not connected</span></div>
+      <div class="topbar-right"><button id="admin-open" class="small-button hidden" type="button">Owner dashboard</button><button id="account-logout" class="small-button" type="button">Log out</button><button id="profile-open" class="small-button profile-open" type="button">Edit profile</button><span class="status-dot"></span><span id="connection-label">Not connected</span></div>
     </header>
 
     <section id="username-gate" class="lobby username-gate">
@@ -181,6 +181,15 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
   </main>
   <footer class="site-credit" style="position:relative;z-index:1;text-align:center;padding:18px 12px 22px;color:#8f849f;font-size:11px;letter-spacing:.5px;">Made By <strong style="color:#bd8aff;font-weight:800;">Shxdow_HC</strong></footer>
 
+
+<dialog id="admin-dialog" class="modal admin-dialog">
+<form method="dialog"><button class="modal-close" aria-label="Close">×</button></form>
+<div class="modal-kicker">HCUNION OWNER</div><h2>Platform dashboard</h2>
+<p>Private owner controls. Only the account explicitly assigned in the database can open this panel.</p>
+<div class="admin-stats"><div><strong id="admin-user-count">—</strong><span>Registered users</span></div><div><strong id="admin-room-count">—</strong><span>Active rooms</span></div></div>
+<div class="admin-toolbar"><strong>Active rooms</strong><button id="admin-refresh" class="small-button" type="button">Refresh</button></div><div id="admin-rooms" class="admin-list"></div>
+<div class="admin-toolbar"><strong>Registered accounts</strong></div><div id="admin-users" class="admin-list"></div><p id="admin-message" class="fine-print"></p>
+</dialog>
   <dialog id="settings-dialog" class="modal"><form method="dialog"><button class="modal-close" aria-label="Close">×</button><div class="modal-kicker">PREFERENCES</div><h2>Audio settings</h2><p>Choose which microphone your browser should use.</p><label for="audio-input">Microphone</label><select id="audio-input"><option value="">Default microphone</option></select><button class="primary-button modal-save" value="close">Done</button></form></dialog>
   <dialog id="manage-dialog" class="modal"><form method="dialog"><button class="modal-close" aria-label="Close">×</button><div class="modal-kicker">ROOM MANAGEMENT</div><h2>Room settings</h2><p>Owner controls for this room.</p><div class="manage-actions"><button id="close-room-button" class="danger-button" type="button">Close room for everyone</button></div><p class="fine-print">Only the room owner can close the room.</p><button class="secondary-button modal-save" value="close">Done</button></form></dialog>
   <dialog id="profile-dialog" class="modal profile-dialog">
@@ -249,3 +258,4 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
 </style>
 
 <style id="account-session-ui">#account-logout{color:#f2f2f2;background:#303030;border:1px solid #4b4b4b;border-radius:6px;padding:8px 11px;font:inherit;font-size:10px;font-weight:700;cursor:pointer}#account-logout:hover{border-color:#38d45e;color:#70e584}</style>
+<style>.admin-dialog{width:min(680px,calc(100% - 24px));max-height:86vh;overflow:auto}.admin-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.admin-stats>div{padding:14px;background:#211a30;border:1px solid #3b2c51;border-radius:9px;display:flex;flex-direction:column;gap:5px}.admin-stats strong{font-size:24px;color:#c8a6ff}.admin-stats span,.admin-list small{font-size:10px;color:#aaa0ba}.admin-toolbar{display:flex;justify-content:space-between;align-items:center;padding:13px 0 8px;border-top:1px solid #30243e}.admin-toolbar strong{font-size:12px}.admin-list{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow:auto}.admin-row{padding:10px 12px;border:1px solid #332743;background:#17111f;border-radius:8px;display:flex;justify-content:space-between;gap:12px;align-items:center}.admin-row strong{font-size:11px;display:block}.admin-row small{display:block;margin-top:4px}.admin-empty{font-size:11px;color:#a99fb5;padding:10px}.admin-dialog .fine-print{font-size:10px;color:#a99fb5;line-height:1.5}</style>
