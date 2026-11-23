@@ -14,6 +14,7 @@ const $ = (id) => document.getElementById(id);
 const lobby = $("lobby"), roomView = $("room");
 let userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
 let authUser = null;
+let activeAccessToken = null;
 const accountSessionId = crypto.randomUUID();
 let accountHeartbeat = null;
 let displayName = "";
@@ -168,12 +169,30 @@ async function endAccountSession() {
     try { await supabase.rpc("release_account_session", { p_session_id: accountSessionId }); } catch {}
   }
   authUser = null;
+  activeAccessToken = null;
   await supabase.auth.signOut();
 }
 window.addEventListener("pagehide", () => {
-  if (authUser && configured) {
-    supabase.rpc("release_account_session", { p_session_id: accountSessionId });
+  // A keepalive request is sent while the document is unloading. Unlike the
+  // normal Supabase client call, fetch({keepalive:true}) can finish after pagehide.
+  if (authUser && configured && activeAccessToken) {
+    try {
+      fetch(SUPABASE_URL + "/rest/v1/rpc/release_account_session", {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": "Bearer " + activeAccessToken,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ p_session_id: accountSessionId }),
+        keepalive: true
+      });
+    } catch {}
   }
+  // Stop local capture immediately even if the network is unavailable.
+  screenStream?.getTracks().forEach(track => track.stop());
+  localStream?.getTracks().forEach(track => track.stop());
+  for (const pc of peers.values()) pc.close();
 });
 async function logoutAccount() {
   await leaveRoom(false);
@@ -265,6 +284,7 @@ $("auth-login-form").addEventListener("submit", async (event) => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({ email: usernameEmail(username), password });
     if (error) throw error;
+    activeAccessToken = data.session?.access_token || null;
     try {
       await loadAccount(data.user);
     } catch (lockError) {
