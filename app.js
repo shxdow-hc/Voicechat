@@ -14,8 +14,7 @@ const $ = (id) => document.getElementById(id);
 const lobby = $("lobby"), roomView = $("room");
 let userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
 let authUser = null;
-const accountSessionId = sessionStorage.getItem("vc-account-session") || crypto.randomUUID();
-sessionStorage.setItem("vc-account-session", accountSessionId);
+const accountSessionId = crypto.randomUUID();
 let accountHeartbeat = null;
 let displayName = "";
 let avatarData = localStorage.getItem("vc-avatar") || "";
@@ -113,6 +112,11 @@ async function endAccountSession() {
   authUser = null;
   await supabase.auth.signOut();
 }
+window.addEventListener("pagehide", () => {
+  if (authUser && configured) {
+    supabase.rpc("release_account_session", { p_session_id: accountSessionId });
+  }
+});
 async function logoutAccount() {
   await leaveRoom(false);
   await endAccountSession();
