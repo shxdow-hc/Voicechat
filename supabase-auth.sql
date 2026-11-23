@@ -151,3 +151,23 @@ drop policy if exists "Platform admins read account sessions" on public.account_
 create policy "Platform admins read account sessions"
  on public.account_sessions for select to authenticated
  using (exists(select 1 from public.platform_admins a where a.user_id=auth.uid()));
+
+-- Owner moderation controls: suspend accounts, revoke sessions, and close rooms.
+alter table public.profiles add column if not exists suspended boolean not null default false;
+grant update on public.profiles to authenticated;
+drop policy if exists "Platform admins update account status" on public.profiles;
+create policy "Platform admins update account status" on public.profiles
+ for update to authenticated using(exists(select 1 from public.platform_admins a where a.user_id=auth.uid()))
+ with check(exists(select 1 from public.platform_admins a where a.user_id=auth.uid()));
+
+alter table public.room_sessions add column if not exists force_closed boolean not null default false;
+grant update on public.room_sessions to authenticated;
+drop policy if exists "Platform admins close rooms" on public.room_sessions;
+create policy "Platform admins close rooms" on public.room_sessions
+ for update to authenticated using(exists(select 1 from public.platform_admins a where a.user_id=auth.uid()))
+ with check(exists(select 1 from public.platform_admins a where a.user_id=auth.uid()));
+
+grant delete on public.account_sessions to authenticated;
+drop policy if exists "Platform admins revoke account sessions" on public.account_sessions;
+create policy "Platform admins revoke account sessions" on public.account_sessions
+ for delete to authenticated using(exists(select 1 from public.platform_admins a where a.user_id=auth.uid()));
