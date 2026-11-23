@@ -24,7 +24,7 @@ $("lobby").classList.add("hidden");
 usernameGate.classList.remove("hidden");
 let channel = null, room = null, isOwner = false, myRole = "member";
 let localStream = null, screenStream = null, micOn = false, peers = new Map(), members = new Map(), remoteStreams = new Map();
-let toastTimer = null, ownerElectionTimer = null;\n
+let toastTimer = null, ownerElectionTimer = null;
 let isPlatformAdmin = false;
 async function checkPlatformAdmin() {
   if (!authUser) return;
@@ -224,6 +224,10 @@ $("auth-register-form").addEventListener("submit", async (event) => {
       options: { data: { username } }
     });
     if (error) throw error;
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      authMessage("That username is already registered. Try logging in or choose another username.");
+      return;
+    }
     if (!data.session) {
       authMessage("Account created, but Supabase email confirmation is still on. Turn it off as explained in SETUP.md, then register again.");
       return;
@@ -235,7 +239,7 @@ $("auth-register-form").addEventListener("submit", async (event) => {
     authMessage("Account created! Please log in with your new username and password.", false);
   } catch (error) {
     const msg = String(error?.message || "");
-    authMessage(/already|duplicate|unique|username/i.test(msg) ? "That username is already taken. Choose another one." : msg || "Couldn't create your account.");
+    authMessage(/already|duplicate|unique|username|registered/i.test(msg) ? "That username is already taken. Choose another one." : /password|weak/i.test(msg) ? "Your password was rejected. Use at least 8 characters and try again." : msg || "Registration failed. Please try again.");
   } finally {
     button.disabled = false; button.innerHTML = 'Register <span>↗</span>';
   }
@@ -259,7 +263,10 @@ $("auth-login-form").addEventListener("submit", async (event) => {
     }
     if (authUser) toast("Welcome back, " + displayName + "!");
   } catch (error) {
-    authMessage(/already being used|session check failed/i.test(String(error?.message || "")) ? error.message : "Username or password is incorrect.");
+    const msg = String(error?.message || "");
+    if (/already being used|session check failed/i.test(msg)) authMessage(msg);
+    else if (/network|fetch|timeout/i.test(msg)) authMessage("Could not reach the login service. Check your internet connection and try again.");
+    else authMessage("Username or password is incorrect. If you do not have an account yet, select Create an account.");
   } finally {
     button.disabled = false; button.innerHTML = 'Log in <span>↗</span>';
   }
@@ -317,7 +324,8 @@ async function enterRoom(info, create) {
   $("chat-messages").innerHTML = "";
   $("chat-empty").classList.remove("hidden");
   showRoom(); setConnection("Connecting…");
-  await supabase.from("room_sessions").upsert({user_id:userId,username:displayName,room_key:info.key,room_name:info.name,room_code:info.code,joined_at:new Date().toISOString(),last_seen:new Date().toISOString(),force_closed:false},{onConflict:"user_id"});\n  channel = supabase.channel("voicechat:" + info.key, { config: { presence: { key: userId }, broadcast: { self: false } } });
+  await supabase.from("room_sessions").upsert({user_id:userId,username:displayName,room_key:info.key,room_name:info.name,room_code:info.code,joined_at:new Date().toISOString(),last_seen:new Date().toISOString(),force_closed:false},{onConflict:"user_id"});
+  channel = supabase.channel("voicechat:" + info.key, { config: { presence: { key: userId }, broadcast: { self: false } } });
   channel.on("presence", { event: "sync" }, syncMembers);
   channel.on("broadcast", { event: "signal" }, ({ payload }) => handleSignal(payload));
   channel.on("broadcast", { event: "room-chat" }, ({ payload }) => receiveChatMessage(payload));
