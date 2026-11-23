@@ -110,6 +110,17 @@ async function enterRoom(info, create) {
   channel.on("broadcast", { event: "room-closed" }, () => { toast("The owner closed this room."); leaveRoom(false); });
   channel.subscribe(async (status) => {
     if (status === "SUBSCRIBED") {
+      // A join attempt must find someone already present. Subscribing to a
+      // Supabase channel alone does not prove that a room exists.
+      if (!create && Object.keys(channel.presenceState()).length === 0) {
+        await channel.unsubscribe();
+        channel = null;
+        room = null;
+        isOwner = false;
+        myRole = "member";
+        showLobby("Room not found. Check the room name and Room Number, then try again.");
+        return;
+      }
       setConnection("Connected", true);
       await channel.track({ id: userId, name: displayName, role: myRole, joinedAt: Date.now(), micOn: false });
       syncMembers();
