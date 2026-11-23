@@ -16,7 +16,15 @@ The GitHub Pages site is the frontend only. Live rooms need a Supabase project f
 
 In Supabase, open **Database → Replication** or **Realtime** settings and make sure Realtime is enabled for your project. This prototype uses Supabase Realtime channels with presence and broadcast. The room channel is public so browsers can exchange WebRTC signaling messages.
 
-## 3. Publish with GitHub Pages
+## 3. Enable username/password accounts
+
+Run the SQL in `supabase-auth.sql` in the Supabase **SQL Editor**. It creates a profiles table with a case-insensitive unique username constraint and a trigger that creates each profile with its Auth account.
+
+Then open **Authentication → Providers → Email** and turn **Confirm email OFF**. This app uses username/password accounts rather than collecting email addresses, so email confirmation cannot be completed. Keep password security enabled. The app maps each username to an internal, non-deliverable email address for Supabase Auth; users only enter their username and password.
+
+After the SQL and Auth setting are in place, new visitors see **Log in** and **Register**. Registration checks that both password entries match, requires at least 8 characters, and the database rejects usernames that are already taken (including capitalization variants).
+
+## 4. Publish with GitHub Pages
 
 In GitHub, open **Settings → Pages** and select **Deploy from a branch**, branch **main**, folder **/(root)**. Save and wait for the Pages deployment to finish.
 
@@ -24,7 +32,7 @@ Your site will be:
 
 `https://andakeevamir010-cyber.github.io/Voicechat/`
 
-## 4. Try it
+## 5. Try it
 
 - Open the site in a modern browser over HTTPS.
 - Create a room with a name and private code.
@@ -46,3 +54,11 @@ Your site will be:
 2. Add TURN/SFU infrastructure for reliable group calls.
 3. Add authenticated display names, room expiry, and stronger invite handling.
 4. Add accessible device selection and moderator/owner management UI.
+
+
+## Account notes
+
+- Username uniqueness is enforced by the database, not just by a browser-side check.
+- Usernames are 3–20 characters and may contain letters, numbers, and underscores.
+- Passwords are handled by Supabase Auth; the app does not store passwords in local storage.
+- The publishable Supabase key in the frontend is expected. Never expose a service-role key.
