@@ -86,7 +86,6 @@ async function enterRoom(info, create) {
   $("lobby-message").textContent = "";
   room = info;
   const ownerKey = "vc-owner-" + info.key;
-  const savedOwner = localStorage.getItem(ownerKey);
   // Ownership is represented by live room presence, not a stale per-browser
   // owner flag. This allows a successor to take over after the creator leaves.
   isOwner = create;
@@ -419,6 +418,7 @@ $("screen-button").addEventListener("click", () => screenStream ? stopScreen() :
 $("stop-screen").addEventListener("click", stopScreen);
 
 async function leaveRoom(returnToLobby = true) {
+  if (ownerElectionTimer) { clearTimeout(ownerElectionTimer); ownerElectionTimer = null; }
   stopScreen();
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   for (const id of [...peers.keys()]) closePeer(id);
