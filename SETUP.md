@@ -18,11 +18,11 @@ In Supabase, open **Database → Replication** or **Realtime** settings and make
 
 ## 3. Enable username/password accounts
 
-Run the SQL in `supabase-auth.sql` in the Supabase **SQL Editor**. It creates a profiles table with a case-insensitive unique username constraint and a trigger that creates each profile with its Auth account.
+Run the latest full SQL in `supabase-auth.sql` in the Supabase **SQL Editor** (run it again if you already ran the earlier version). It creates the profiles table, enforces case-insensitive unique usernames, and adds a database-backed one-active-session lock per account.
 
 Then open **Authentication → Providers → Email** and turn **Confirm email OFF**. This app uses username/password accounts rather than collecting email addresses, so email confirmation cannot be completed. Keep password security enabled. The app maps each username to an internal, non-deliverable email address for Supabase Auth; users only enter their username and password.
 
-After the SQL and Auth setting are in place, new visitors see **Log in** and **Register**. Registration checks that both password entries match, requires at least 8 characters, and the database rejects usernames that are already taken (including capitalization variants).
+After the SQL and Auth setting are in place, new visitors see **Log in** and **Register**. Registration checks that both password entries match, requires at least 8 characters, and the database rejects usernames that are already taken (including capitalization variants). After registration, the user is returned to the login screen and must log in. Each account can be active in only one browser tab/device at a time. A second login is rejected while the first session is active; if a browser crashes or loses connection without releasing its lock, it expires after about 90 seconds. Users can use the **Log out** button to end their session.
 
 ## 4. Publish with GitHub Pages
 
