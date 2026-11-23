@@ -129,7 +129,7 @@ $("auth-register-form").addEventListener("submit", async (event) => {
     if (authUser) toast("Your HCunion account is ready!");
   } catch (error) {
     const msg = String(error?.message || "");
-    authMessage(/already|duplicate|unique/i.test(msg) ? "That username is already taken. Choose another one." : msg || "Couldn't create your account.");
+    authMessage(/already|duplicate|unique|username/i.test(msg) ? "That username is already taken. Choose another one." : msg || "Couldn't create your account.");
   } finally {
     button.disabled = false; button.innerHTML = 'Register <span>↗</span>';
   }
