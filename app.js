@@ -140,6 +140,14 @@ async function sendChatMessage(event) {
   if (result !== "ok") toast("Message may not have sent. Check your connection.");
 }
 $("chat-form").addEventListener("submit", sendChatMessage);
+$("chat-toggle").addEventListener("click", () => {
+  const panel = $("room-chat");
+  const opening = panel.classList.contains("hidden");
+  panel.classList.toggle("hidden", !opening);
+  $("chat-toggle").setAttribute("aria-expanded", String(opening));
+  $("chat-toggle").textContent = opening ? "Hide chat" : "Chat";
+  if (opening) { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); $("chat-input").focus(); }
+});
 
 function syncMembers() {
   if (!channel) return;
@@ -314,7 +322,7 @@ function closePeer(id) {
 async function shareScreen() {
   try {
     if (!window.isSecureContext) { toast("Screen sharing needs a secure HTTPS page. Open the GitHub Pages link directly."); return; }
-    if (!navigator.mediaDevices?.getDisplayMedia) { toast("This browser does not expose screen capture. Try desktop Chrome or Edge."); return; }
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== "function") { toast("Screen sharing is not available in this browser. Open VoiceChat in the latest desktop Chrome or Edge; iPhone and iPad browsers do not support sharing a screen here."); return; }
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
     const track = screenStream.getVideoTracks()[0];
     if (!track) throw new Error("No screen video track was created.");
