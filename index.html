@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090811">
+  <title>VoiceChat — Talk together</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="./"><span class="brand-mark"><span></span><span></span><span></span></span><span>voice<span class="brand-accent">chat</span></span></a>
+      <div class="topbar-right"><span class="status-dot"></span><span id="connection-label">Not connected</span></div>
+    </header>
+
+    <section id="lobby" class="lobby">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-line"></span> YOUR SPACE. YOUR PEOPLE.</div>
+        <h1>Talk like you're<br><span>in the same room.</span></h1>
+        <p class="hero-subtitle">Create a private room, invite your people, and hang out with voice and screen sharing.</p>
+      </div>
+      <div class="entry-grid">
+        <article class="entry-card create-card">
+          <div class="card-icon purple-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+          <h2>Create a room</h2><p>Start a room and choose its private access code.</p>
+          <form id="create-form">
+            <label for="create-name">Room name</label><input id="create-name" maxlength="32" placeholder="Friday night hangout" required>
+            <label for="create-code">Room code</label><input id="create-code" maxlength="32" placeholder="Make a private code" required>
+            <button class="primary-button" type="submit">Create room <span>↗</span></button>
+          </form>
+        </article>
+        <article class="entry-card join-card">
+          <div class="card-icon blue-icon"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h6a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-6"/></svg></div>
+          <h2>Join a room</h2><p>Enter the room details shared by the host.</p>
+          <form id="join-form">
+            <label for="join-name">Room name</label><input id="join-name" maxlength="32" placeholder="Enter room name" required>
+            <label for="join-code">Room code</label><input id="join-code" maxlength="32" placeholder="Enter room code" required>
+            <button class="secondary-button" type="submit">Join room <span>↗</span></button>
+          </form>
+        </article>
+      </div>
+      <div class="lobby-foot"><span><i></i> Private rooms</span><span><i></i> Live voice</span><span><i></i> Screen sharing</span></div>
+      <p id="lobby-message" class="message" role="status"></p>
+    </section>
+
+    <section id="room" class="room-view hidden">
+      <aside class="room-sidebar">
+        <div class="sidebar-heading"><span class="mini-brand">V</span><span>VOICECHAT</span></div>
+        <div class="sidebar-label">CURRENT ROOM</div>
+        <div class="room-summary"><div class="room-avatar">VC</div><div class="room-summary-text"><strong id="sidebar-room-name">Room</strong><small><span class="live-dot"></span> Live room</small></div></div>
+        <div class="sidebar-label members-label">IN THIS ROOM <span id="member-count">0</span></div>
+        <div id="member-list" class="member-list"></div>
+        <div class="sidebar-bottom"><div class="you-card"><div class="avatar you-avatar" id="self-avatar">Y</div><div class="you-meta"><strong id="self-name">You</strong><small id="self-role">Member</small></div><button id="leave-button" class="leave-button" title="Leave room" aria-label="Leave room">↗</button></div></div>
+      </aside>
+      <section class="room-main">
+        <header class="room-header"><div><div class="breadcrumb">VOICE ROOMS <span>/</span> <b id="room-title">Room</b></div><h2 id="room-heading">Room</h2></div><div class="room-header-actions"><span class="room-live"><i></i> LIVE</span><button id="copy-invite" class="small-button">Copy invite</button><button id="room-menu-button" class="icon-button" aria-label="Room options">•••</button></div></header>
+        <div class="room-content">
+          <div class="voice-stage"><div class="stage-glow"></div><div class="stage-content"><div class="voice-orb"><div class="orb-inner"><span class="orb-bars"><i></i><i></i><i></i><i></i><i></i></span></div></div><h3 id="stage-title">You're in the room</h3><p id="stage-subtitle">Turn on your microphone to start talking.</p><div class="stage-pills"><span><b id="stage-member-count">1</b> in room</span><span>End-to-end browser connection</span></div></div></div>
+          <div id="screen-area" class="screen-area hidden"><div class="screen-top"><span><i></i> LIVE SCREEN</span><button id="stop-screen" class="text-button">Stop sharing</button></div><video id="screen-video" autoplay playsinline muted></video></div>
+          <div class="room-tip"><span class="tip-icon">✦</span><span><strong>Make yourself at home.</strong> Use the controls below to talk or share your screen.</span></div>
+        </div>
+        <footer class="control-dock"><div class="dock-left"><span class="dock-label">VOICE CONTROLS</span><span id="mic-state" class="mic-state">MIC OFF</span></div><div class="dock-controls"><button id="mic-button" class="control-button" title="Turn microphone on"><span class="control-symbol">♩</span><small>Unmute</small></button><button id="screen-button" class="control-button" title="Share screen"><span class="control-symbol">▣</span><small>Share screen</small></button><button id="settings-button" class="control-button" title="Audio settings"><span class="control-symbol">⚙</span><small>Settings</small></button></div><div class="dock-right"><button id="end-button" class="end-button">Leave room <span>↗</span></button></div></footer>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="settings-dialog" class="modal"><form method="dialog"><button class="modal-close" aria-label="Close">×</button><div class="modal-kicker">PREFERENCES</div><h2>Audio settings</h2><p>Choose which microphone your browser should use.</p><label for="audio-input">Microphone</label><select id="audio-input"><option value="">Default microphone</option></select><button class="primary-button modal-save" value="close">Done</button></form></dialog>
+  <dialog id="manage-dialog" class="modal"><form method="dialog"><button class="modal-close" aria-label="Close">×</button><div class="modal-kicker">ROOM MANAGEMENT</div><h2>Room settings</h2><p>Owner controls for this room.</p><div class="manage-actions"><button id="close-room-button" class="danger-button" type="button">Close room for everyone</button></div><p class="fine-print">Only the room owner can close the room.</p><button class="secondary-button modal-save" value="close">Done</button></form></dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
