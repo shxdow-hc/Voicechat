@@ -286,26 +286,32 @@ $("avatar-remove").addEventListener("click", () => {
 });
 $("profile-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const nextName = $("profile-name").value.trim();
+  const nextName = $("profile-name").value.trim().replace(/\\s+/g, " ");
   if (!/^[A-Za-z0-9 _-]{1,24}$/.test(nextName)) {
-    $("profile-message").textContent = "Use 1–24 letters, numbers, spaces, underscores, or hyphens for your display name.";
+    $("profile-message").textContent = "Username must be 1–24 characters and can use letters, numbers, spaces, underscores, or hyphens.";
+    return;
+  }
+  try {
+    localStorage.setItem("vc-display-name", nextName);
+    if (pendingAvatar) localStorage.setItem("vc-avatar", pendingAvatar);
+    else localStorage.removeItem("vc-avatar");
+  } catch {
+    $("profile-message").textContent = "Couldn't save your profile on this device. Try a smaller picture.";
     return;
   }
   displayName = nextName;
-  localStorage.setItem("vc-display-name", displayName);
   avatarData = pendingAvatar;
-  try {
-    if (avatarData) localStorage.setItem("vc-avatar", avatarData);
-    else localStorage.removeItem("vc-avatar");
-  } catch {
-    $("profile-message").textContent = "This picture couldn't be saved on this device. Try a smaller image.";
-    return;
-  }
   updateSelfProfileUI();
   updateProfilePreview();
   if (channel) await trackSelf();
+  if (room && configured) {
+    const { error } = await supabase.from("room_sessions")
+      .update({ username: displayName })
+      .eq("user_id", userId);
+    if (error) console.warn("Guest display name update failed:", error);
+  }
   $("profile-dialog").close();
-  toast("Your guest profile was updated.");
+  toast("Username and profile picture saved.");
 });
 $("chat-form").addEventListener("submit", sendChatMessage);
 $("chat-toggle").addEventListener("click", () => {
