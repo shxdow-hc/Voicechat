@@ -14,6 +14,9 @@ const $ = (id) => document.getElementById(id);
 const lobby = $("lobby"), roomView = $("room");
 let userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
 let authUser = null;
+const accountSessionId = sessionStorage.getItem("vc-account-session") || crypto.randomUUID();
+sessionStorage.setItem("vc-account-session", accountSessionId);
+let accountHeartbeat = null;
 let displayName = "";
 let avatarData = localStorage.getItem("vc-avatar") || "";
 let pendingAvatar = avatarData;
@@ -86,8 +89,44 @@ $("show-login").addEventListener("click", () => showAuthPanel(false));
 function usernameEmail(username) {
   return username.trim().toLowerCase() + "@users.hcunion.invalid";
 }
+async function startAccountLock() {
+  const { data, error } = await supabase.rpc("claim_account_session", { p_session_id: accountSessionId });
+  if (error) throw new Error("Account session check failed. Run the updated supabase-auth.sql setup.");
+  if (data !== true) throw new Error("This account is already being used on another device or browser. Log out there first, or wait about 90 seconds after it disconnects.");
+  if (accountHeartbeat) clearInterval(accountHeartbeat);
+  accountHeartbeat = setInterval(async () => {
+    const { data: active, error: heartbeatError } = await supabase.rpc("refresh_account_session", { p_session_id: accountSessionId });
+    if (heartbeatError || active !== true) {
+      clearInterval(accountHeartbeat); accountHeartbeat = null;
+      await supabase.auth.signOut();
+      authUser = null; displayName = "";
+      usernameGate.classList.remove("hidden"); $("lobby").classList.add("hidden");
+      authMessage("Your account session ended because it was opened somewhere else. Please log in again.");
+    }
+  }, 25000);
+}
+async function endAccountSession() {
+  if (accountHeartbeat) { clearInterval(accountHeartbeat); accountHeartbeat = null; }
+  if (configured && authUser) {
+    try { await supabase.rpc("release_account_session", { p_session_id: accountSessionId }); } catch {}
+  }
+  authUser = null;
+  await supabase.auth.signOut();
+}
+async function logoutAccount() {
+  await leaveRoom(false);
+  await endAccountSession();
+  displayName = "";
+  localStorage.removeItem("vc-display-name");
+  usernameGate.classList.remove("hidden");
+  $("lobby").classList.add("hidden");
+  showAuthPanel(false);
+  toast("You have been logged out.");
+}
+$("account-logout").addEventListener("click", logoutAccount);
 async function loadAccount(user) {
   if (!user) return;
+  await startAccountLock();
   const { data, error } = await supabase.from("profiles").select("username").eq("id", user.id).single();
   if (error || !data?.username) {
     authMessage("Your account profile could not be loaded. Check the Supabase SQL setup in SETUP.md.");
@@ -125,8 +164,11 @@ $("auth-register-form").addEventListener("submit", async (event) => {
       authMessage("Account created, but Supabase email confirmation is still on. Turn it off as explained in SETUP.md, then register again.");
       return;
     }
-    await loadAccount(data.user);
-    if (authUser) toast("Your HCunion account is ready!");
+    await supabase.auth.signOut();
+    showAuthPanel(false);
+    $("login-username").value = username;
+    $("login-password").value = "";
+    authMessage("Account created! Please log in with your new username and password.", false);
   } catch (error) {
     const msg = String(error?.message || "");
     authMessage(/already|duplicate|unique|username/i.test(msg) ? "That username is already taken. Choose another one." : msg || "Couldn't create your account.");
@@ -145,18 +187,29 @@ $("auth-login-form").addEventListener("submit", async (event) => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({ email: usernameEmail(username), password });
     if (error) throw error;
-    await loadAccount(data.user);
+    try {
+      await loadAccount(data.user);
+    } catch (lockError) {
+      await supabase.auth.signOut();
+      throw lockError;
+    }
     if (authUser) toast("Welcome back, " + displayName + "!");
   } catch (error) {
-    authMessage("Username or password is incorrect.");
+    authMessage(/already being used|session check failed/i.test(String(error?.message || "")) ? error.message : "Username or password is incorrect.");
   } finally {
     button.disabled = false; button.innerHTML = 'Log in <span>↗</span>';
   }
 });
 if (configured) {
+  // Always require a fresh login when the site is opened. Never silently reuse
+  // a saved Supabase auth session from a previous visit.
   supabase.auth.getSession().then(async ({ data, error }) => {
     if (error) { authMessage("Couldn't check your login session. Please log in again."); return; }
-    if (data.session?.user) await loadAccount(data.session.user);
+    if (data.session) {
+      try { await supabase.rpc("release_account_session", { p_session_id: accountSessionId }); } catch {}
+      await supabase.auth.signOut();
+    }
+    showAuthPanel(false);
   });
 } else {
   authMessage("Accounts are not configured yet. The owner must finish the Supabase setup in SETUP.md.");
