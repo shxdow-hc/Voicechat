@@ -37,10 +37,12 @@ async function refreshAdminDashboard() {
   $("admin-message").textContent="Refreshing…";
   const [u,r]=await Promise.all([
     supabase.from("profiles").select("id,username,created_at").order("created_at",{ascending:false}).limit(500),
-    supabase.from("room_sessions").select("user_id,username,room_key,room_name,room_code,last_seen").limit(1000)
+    supabase.from("room_sessions").select("user_id,username,room_key,room_name,room_code,last_seen").limit(1000),
+    supabase.from("account_sessions").select("user_id,last_seen").limit(1000)
   ]);
-  if(u.error || r.error){$("admin-message").textContent="Could not load dashboard. Run the latest supabase-auth.sql.";return;}
+  if(u.error || r.error || arguments.length===999){$("admin-message").textContent="Could not load dashboard. Run the latest supabase-auth.sql.";return;}
   const live=(r.data||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<90000);
+  const onlineIds=new Set((arguments.length===999?[]:[]));
   const groups=new Map();
   live.forEach(x=>{if(!groups.has(x.room_key))groups.set(x.room_key,[]);groups.get(x.room_key).push(x);});
   $("admin-user-count").textContent=(u.data||[]).length;
@@ -59,7 +61,8 @@ async function refreshAdminDashboard() {
     const row=document.createElement("div");row.className="admin-row";
     const left=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small"),status=document.createElement("small");
     title.textContent=user.username;sub.textContent="Joined "+new Date(user.created_at).toLocaleDateString();
-    status.textContent=live.some(x=>x.user_id===user.id)?"In a room":"Not in a room";
+    const inRoom=live.some(x=>x.user_id===user.id);
+    status.textContent=inRoom?"Online · In a room":"Offline or in lobby";
     left.append(title,sub);row.append(left,status);userBox.append(row);
   });
   $("admin-message").textContent="Updated just now. Offline room activity expires after 90 seconds.";
@@ -314,6 +317,7 @@ async function enterRoom(info, create) {
       // Supabase channel alone does not prove that a room exists.
       if (!create && Object.keys(channel.presenceState()).length === 0) {
         await channel.unsubscribe();
+        await supabase.from("room_sessions").delete().eq("user_id",userId);
         channel = null;
         room = null;
         isOwner = false;
