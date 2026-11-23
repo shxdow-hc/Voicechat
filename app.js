@@ -51,10 +51,14 @@ async function refreshAdminDashboard() {
   if(!groups.size)roomBox.innerHTML='<p class="admin-empty">No active rooms.</p>';
   groups.forEach(members=>{
     const row=document.createElement("div");row.className="admin-row";
-    const left=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small");
+    const left=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small"),people=document.createElement("small"),join=document.createElement("button");
     title.textContent=members[0].room_name;
     sub.textContent="Room Number: "+members[0].room_code+" · "+members.length+" member(s)";
-    left.append(title,sub);row.append(left);roomBox.append(row);
+    people.textContent="Members: "+members.map(x=>x.username).join(", ");
+    left.append(title,sub,people);
+    join.type="button";join.className="small-button";join.textContent="Join";
+    join.addEventListener("click",async()=>{$("admin-dialog").close();await enterRoom(roomIdentity(members[0].room_name,members[0].room_code),false);});
+    row.append(left,join);roomBox.append(row);
   });
   const userBox=$("admin-users");userBox.replaceChildren();
   (u.data||[]).forEach(user=>{
