@@ -182,6 +182,7 @@ async function logoutAccount() {
   localStorage.removeItem("vc-display-name");
   usernameGate.classList.remove("hidden");
   $("lobby").classList.add("hidden");
+  $("profile-open").classList.add("hidden");
   showAuthPanel(false);
   toast("You have been logged out.");
 }
@@ -203,6 +204,7 @@ async function loadAccount(user) {
   localStorage.setItem("vc-display-name", displayName);
   updateSelfProfileUI();
   updateProfilePreview();
+  $("profile-open").classList.remove("hidden");
   usernameGate.classList.add("hidden");
   $("lobby").classList.remove("hidden");
   authMessage("", false);
