@@ -108,6 +108,8 @@ security definer
 set search_path = public
 as $$
 begin
+  -- Remove room presence as part of the same unload/logout request.
+  delete from public.room_sessions where user_id = auth.uid();
   delete from public.account_sessions
   where user_id = auth.uid() and session_id = p_session_id;
   return found;
