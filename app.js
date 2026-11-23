@@ -12,78 +12,15 @@ const supabase = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : nu
 
 const $ = (id) => document.getElementById(id);
 const lobby = $("lobby"), roomView = $("room");
-let userId = sessionStorage.getItem("vc-user-id") || crypto.randomUUID();
-let authUser = null;
+let userId = crypto.randomUUID();
 let activeAccessToken = null;
-const accountSessionId = crypto.randomUUID();
-let accountHeartbeat = null;
-let displayName = "";
+let guestHeartbeat = null;
+let displayName = localStorage.getItem("vc-display-name") || "Guest";
 let avatarData = localStorage.getItem("vc-avatar") || "";
 let pendingAvatar = avatarData;
-const usernameGate = $("username-gate");
-$("lobby").classList.add("hidden");
-usernameGate.classList.remove("hidden");
 let channel = null, room = null, isOwner = false, myRole = "member";
 let localStream = null, screenStream = null, micOn = false, peers = new Map(), members = new Map(), remoteStreams = new Map();
 let toastTimer = null, ownerElectionTimer = null;
-let isPlatformAdmin = false;
-async function checkPlatformAdmin() {
-  if (!authUser) return;
-  const {data,error}=await supabase.from("platform_admins").select("user_id").eq("user_id",authUser.id).maybeSingle();
-  isPlatformAdmin=!error && !!data;
-  $("admin-open").classList.toggle("hidden",!isPlatformAdmin);
-}
-async function refreshAdminDashboard() {
-  if(!isPlatformAdmin || !authUser) return;
-  $("admin-message").textContent="Refreshing…";
-  const [u,r,s]=await Promise.all([
-    supabase.from("profiles").select("id,username,created_at,suspended").order("created_at",{ascending:false}).limit(500),
-    supabase.from("room_sessions").select("user_id,username,room_key,room_name,room_code,last_seen").limit(1000),
-    supabase.from("account_sessions").select("user_id,last_seen").limit(1000)
-  ]);
-  if(u.error || r.error || s.error){$("admin-message").textContent="Could not load dashboard. Run the latest supabase-auth.sql.";return;}
-  const live=(r.data||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<90000);
-  const onlineIds=new Set((s.data||[]).filter(x=>Date.now()-new Date(x.last_seen).getTime()<90000).map(x=>x.user_id));
-  const groups=new Map();
-  live.forEach(x=>{if(!groups.has(x.room_key))groups.set(x.room_key,[]);groups.get(x.room_key).push(x);});
-  $("admin-user-count").textContent=(u.data||[]).length;
-  $("admin-room-count").textContent=groups.size;
-  const roomBox=$("admin-rooms");roomBox.replaceChildren();
-  if(!groups.size)roomBox.innerHTML='<p class="admin-empty">No active rooms.</p>';
-  groups.forEach(members=>{
-    const row=document.createElement("div");row.className="admin-row";
-    const left=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small"),people=document.createElement("small"),join=document.createElement("button");
-    title.textContent=members[0].room_name;
-    sub.textContent="Room Number: "+members[0].room_code+" · "+members.length+" member(s)";
-    people.textContent="Members: "+members.map(x=>x.username).join(", ");
-    left.append(title,sub,people);
-    const actions=document.createElement("div");actions.style.display="flex";actions.style.gap="6px";
-    join.type="button";join.className="small-button";join.textContent="Join";
-    join.addEventListener("click",async()=>{$("admin-dialog").close();await enterRoom(roomIdentity(members[0].room_name,members[0].room_code),false);});
-    const close=document.createElement("button");close.type="button";close.className="small-button";close.textContent="Close room";
-    close.addEventListener("click",async()=>{const result=await supabase.from("room_sessions").update({force_closed:true}).eq("room_key",members[0].room_key);if(result.error){$("admin-message").textContent="Couldn't close room.";return;}await refreshAdminDashboard();});
-    actions.append(join,close);row.append(left,actions);roomBox.append(row);
-  });
-  const userBox=$("admin-users");userBox.replaceChildren();
-  (u.data||[]).forEach(user=>{
-    const row=document.createElement("div");row.className="admin-row";
-    const left=document.createElement("div"),title=document.createElement("strong"),sub=document.createElement("small"),status=document.createElement("small");
-    title.textContent=user.username;sub.textContent="Joined "+new Date(user.created_at).toLocaleDateString();
-    const inRoom=live.some(x=>x.user_id===user.id);
-    status.textContent=inRoom?"Online · In a room":onlineIds.has(user.id)?"Online · In lobby":"Offline";
-    const actions=document.createElement("div");actions.style.display="flex";actions.style.gap="6px";
-    const suspend=document.createElement("button");suspend.type="button";suspend.className="small-button";suspend.textContent=user.suspended?"Unsuspend":"Suspend";
-    suspend.addEventListener("click",async()=>{const result=await supabase.from("profiles").update({suspended:!user.suspended}).eq("id",user.id);if(result.error){$("admin-message").textContent="Couldn't update account status.";return;}await refreshAdminDashboard();});
-    const revoke=document.createElement("button");revoke.type="button";revoke.className="small-button";revoke.textContent="Log out";
-    revoke.addEventListener("click",async()=>{const result=await supabase.from("account_sessions").delete().eq("user_id",user.id);if(result.error){$("admin-message").textContent="Couldn't revoke session.";return;}await refreshAdminDashboard();});
-    actions.append(suspend,revoke);left.append(title,sub);row.append(left,status,actions);userBox.append(row);
-  });
-  $("admin-message").textContent="Updated just now. Offline room activity expires after 90 seconds.";
-}
-$("admin-open").addEventListener("click",async()=>{if(!isPlatformAdmin)return;$("admin-dialog").showModal();await refreshAdminDashboard();});
-$("admin-refresh").addEventListener("click",refreshAdminDashboard);
-
-
 function toast(message) {
   const el = $("toast"); el.textContent = message; el.classList.add("show");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
@@ -104,10 +41,11 @@ function setAvatar(element, avatar, name) {
 }
 function updateProfilePreview() {
   $("profile-preview-name").textContent = displayName || "Guest";
+  const nameInput = $("profile-name"); if (nameInput) nameInput.value = displayName || "Guest";
   setAvatar($("profile-preview-avatar"), pendingAvatar, displayName || "Guest");
 }
 function updateSelfProfileUI() {
-  $("self-name").textContent = displayName;
+  $("self-name").textContent = displayName || "Guest";
   setAvatar($("self-avatar"), avatarData, displayName);
 }
 function trackSelf() {
@@ -131,190 +69,65 @@ function requireConfig() {
   $("lobby-message").textContent = "";
   return true;
 }
-function authMessage(message, isError = true) {
-  const el = $("username-message");
-  el.textContent = message;
-  el.style.color = isError ? "#ff9bad" : "#68dc91";
-}
-function showAuthPanel(register) {
-  $("auth-login-panel").classList.toggle("hidden", register);
-  $("auth-register-panel").classList.toggle("hidden", !register);
-  authMessage("");
-}
-$("show-register").addEventListener("click", () => showAuthPanel(true));
-$("show-login").addEventListener("click", () => showAuthPanel(false));
-function usernameEmail(username) {
-  return username.trim().toLowerCase() + "@users.hcunion.invalid";
-}
-async function startAccountLock() {
-  const { data, error } = await supabase.rpc("claim_account_session", { p_session_id: accountSessionId });
-  if (error) throw new Error("Account session check failed. Run the updated supabase-auth.sql setup.");
-  if (data !== true) throw new Error("This account is already being used on another device or browser. Log out there first, or wait about 90 seconds after it disconnects.");
-  if (accountHeartbeat) clearInterval(accountHeartbeat);
-  accountHeartbeat = setInterval(async () => {
-    const { data: active, error: heartbeatError } = await supabase.rpc("refresh_account_session", { p_session_id: accountSessionId });
-    if (room) { const presence=await supabase.from("room_sessions").update({last_seen:new Date().toISOString()}).eq("user_id",userId).select("force_closed").maybeSingle(); if (presence.data?.force_closed) { await leaveRoom(false); toast("The HCunion owner closed this room."); } }
-    if (heartbeatError || active !== true) {
-      clearInterval(accountHeartbeat); accountHeartbeat = null;
-      await supabase.auth.signOut();
-      authUser = null; displayName = "";
-      usernameGate.classList.remove("hidden"); $("lobby").classList.add("hidden");
-      authMessage("Your account session ended because it was opened somewhere else. Please log in again.");
-    }
-  }, 25000);
-}
-async function endAccountSession() {
-  if (accountHeartbeat) { clearInterval(accountHeartbeat); accountHeartbeat = null; }
-  if (configured && authUser) {
-    try { await supabase.rpc("release_account_session", { p_session_id: accountSessionId }); } catch {}
+async function initializeGuest() {
+  if (!configured) {
+    showLobby("Live rooms need the Supabase project configuration. Please contact the HCunion owner.");
+    setConnection("Backend not configured");
+    return;
   }
-  authUser = null;
-  activeAccessToken = null;
-  await supabase.auth.signOut();
+  try {
+    // Every visit receives a fresh anonymous identity. No username, email, or password is requested.
+    await supabase.auth.signOut();
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) throw error;
+    userId = data.user.id;
+    activeAccessToken = data.session?.access_token || null;
+    sessionStorage.setItem("vc-user-id", userId);
+    updateSelfProfileUI();
+    updateProfilePreview();
+    $("profile-open").classList.remove("hidden");
+    lobby.classList.remove("hidden");
+    $("lobby-message").textContent = "";
+    if (guestHeartbeat) clearInterval(guestHeartbeat);
+    guestHeartbeat = setInterval(async () => {
+      if (!room) return;
+      const { data: presence, error: presenceError } = await supabase
+        .from("room_sessions")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("user_id", userId)
+        .select("force_closed")
+        .maybeSingle();
+      if (!presenceError && presence?.force_closed) {
+        await leaveRoom(false);
+        toast("The HCunion owner closed this room.");
+      }
+    }, 25000);
+  } catch (error) {
+    showLobby("Couldn't start a guest session. The HCunion owner needs to enable anonymous sign-ins in Supabase.");
+    setConnection("Guest connection unavailable");
+    console.error("Guest session initialization failed:", error);
+  }
 }
 window.addEventListener("pagehide", () => {
-  // A keepalive request is sent while the document is unloading. Unlike the
-  // normal Supabase client call, fetch({keepalive:true}) can finish after pagehide.
-  if (authUser && configured && activeAccessToken) {
+  // Best-effort cleanup of this guest's room record when the tab closes.
+  if (room && configured && activeAccessToken) {
     try {
-      fetch(SUPABASE_URL + "/rest/v1/rpc/release_account_session", {
-        method: "POST",
+      fetch(SUPABASE_URL + "/rest/v1/room_sessions?user_id=eq." + encodeURIComponent(userId), {
+        method: "DELETE",
         headers: {
           "apikey": SUPABASE_ANON_KEY,
           "Authorization": "Bearer " + activeAccessToken,
-          "Content-Type": "application/json"
+          "Prefer": "return=minimal"
         },
-        body: JSON.stringify({ p_session_id: accountSessionId }),
         keepalive: true
       });
     } catch {}
   }
-  // Stop local capture immediately even if the network is unavailable.
   screenStream?.getTracks().forEach(track => track.stop());
   localStream?.getTracks().forEach(track => track.stop());
   for (const pc of peers.values()) pc.close();
 });
-async function logoutAccount() {
-  await leaveRoom(false);
-  await endAccountSession();
-  displayName = "";
-  localStorage.removeItem("vc-display-name");
-  usernameGate.classList.remove("hidden");
-  $("lobby").classList.add("hidden");
-  $("profile-open").classList.add("hidden");
-  showAuthPanel(false);
-  toast("You have been logged out.");
-}
-$("account-logout").addEventListener("click", logoutAccount);
-async function loadAccount(user) {
-  if (!user) return;
-  await startAccountLock();
-  const { data, error } = await supabase.from("profiles").select("username,suspended").eq("id", user.id).single();
-  if (error || !data?.username) {
-    authMessage("Your account profile could not be loaded. Check the Supabase SQL setup in SETUP.md.");
-    return;
-  }
-  if (data.suspended) { await supabase.rpc("release_account_session", { p_session_id: accountSessionId }); await supabase.auth.signOut(); authMessage("This account has been suspended by the HCunion owner."); return; }
-  authUser = user;
-  await checkPlatformAdmin();
-  userId = user.id;
-  sessionStorage.setItem("vc-user-id", userId);
-  displayName = data.username;
-  localStorage.setItem("vc-display-name", displayName);
-  updateSelfProfileUI();
-  updateProfilePreview();
-  $("profile-open").classList.remove("hidden");
-  usernameGate.classList.add("hidden");
-  $("lobby").classList.remove("hidden");
-  authMessage("", false);
-}
-$("auth-register-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!configured) { authMessage("Account registration needs the Supabase setup. See SETUP.md."); return; }
-  const username = $("register-username").value.trim();
-  const password = $("register-password").value;
-  const confirm = $("register-confirm").value;
-  if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) { authMessage("Use 3–20 letters, numbers, or underscores for your username."); return; }
-  if (password.length < 8) { authMessage("Your password must be at least 8 characters."); return; }
-  if (password !== confirm) { authMessage("The passwords don't match. Check them and try again."); return; }
-  const button = $("auth-register-form").querySelector("button[type=submit]");
-  button.disabled = true; button.textContent = "Creating account…";
-  try {
-    const { data, error } = await supabase.auth.signUp({
-      email: usernameEmail(username), password,
-      options: { data: { username } }
-    });
-    if (error) throw error;
-    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      authMessage("That username is already registered. Try logging in or choose another username.");
-      return;
-    }
-    if (!data.session) {
-      authMessage("Account created, but Supabase email confirmation is still on. Turn it off as explained in SETUP.md, then register again.");
-      return;
-    }
-    await supabase.auth.signOut();
-    showAuthPanel(false);
-    $("login-username").value = username;
-    $("login-password").value = "";
-    authMessage("Account created! Please log in with your new username and password.", false);
-  } catch (error) {
-    const msg = String(error?.message || "");
-    if (/rate limit|too many requests|email.*limit/i.test(msg)) {
-      authMessage("Supabase blocked registration because its email-sending limit was reached. In Supabase, turn OFF Authentication → Sign In / Providers → Email → Confirm email. Then wait for the email limit to reset before trying again.");
-    } else if (/already|duplicate|unique|username|registered/i.test(msg)) {
-      authMessage("That username is already taken. Choose another one.");
-    } else if (/password|weak/i.test(msg)) {
-      authMessage("Your password was rejected. Use at least 8 characters and try again.");
-    } else {
-      authMessage(msg || "Registration failed. Please try again.");
-    }
-  } finally {
-    button.disabled = false; button.innerHTML = 'Register <span>↗</span>';
-  }
-});
-$("auth-login-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!configured) { authMessage("Account login needs the Supabase setup. See SETUP.md."); return; }
-  const username = $("login-username").value.trim();
-  const password = $("login-password").value;
-  if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) { authMessage("Enter a valid username."); return; }
-  const button = $("auth-login-form").querySelector("button[type=submit]");
-  button.disabled = true; button.textContent = "Logging in…";
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: usernameEmail(username), password });
-    if (error) throw error;
-    activeAccessToken = data.session?.access_token || null;
-    try {
-      await loadAccount(data.user);
-    } catch (lockError) {
-      await supabase.auth.signOut();
-      throw lockError;
-    }
-    if (authUser) toast("Welcome back, " + displayName + "!");
-  } catch (error) {
-    const msg = String(error?.message || "");
-    if (/already being used|session check failed/i.test(msg)) authMessage(msg);
-    else if (/network|fetch|timeout/i.test(msg)) authMessage("Could not reach the login service. Check your internet connection and try again.");
-    else authMessage("Username or password is incorrect. If you do not have an account yet, select Create an account.");
-  } finally {
-    button.disabled = false; button.innerHTML = 'Log in <span>↗</span>';
-  }
-});
-if (configured) {
-  // Always require a fresh login when the site is opened. Never silently reuse
-  // a saved Supabase auth session from a previous visit.
-  supabase.auth.getSession().then(async ({ data, error }) => {
-    if (error) { authMessage("Couldn't check your login session. Please log in again."); return; }
-    if (data.session) {
-      try { await supabase.rpc("release_account_session", { p_session_id: accountSessionId }); } catch {}
-      await supabase.auth.signOut();
-    }
-    showAuthPanel(false);
-  });
-} else {
-  authMessage("Accounts are not configured yet. The owner must finish the Supabase setup in SETUP.md.");
-}
+initializeGuest();
 updateProfilePreview();
 
 function roomIdentity(name, code) {
@@ -473,6 +286,13 @@ $("avatar-remove").addEventListener("click", () => {
 });
 $("profile-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const nextName = $("profile-name").value.trim();
+  if (!/^[A-Za-z0-9 _-]{1,24}$/.test(nextName)) {
+    $("profile-message").textContent = "Use 1–24 letters, numbers, spaces, underscores, or hyphens for your display name.";
+    return;
+  }
+  displayName = nextName;
+  localStorage.setItem("vc-display-name", displayName);
   avatarData = pendingAvatar;
   try {
     if (avatarData) localStorage.setItem("vc-avatar", avatarData);
@@ -482,9 +302,10 @@ $("profile-form").addEventListener("submit", async (event) => {
     return;
   }
   updateSelfProfileUI();
+  updateProfilePreview();
   if (channel) await trackSelf();
   $("profile-dialog").close();
-  toast("Your profile picture was updated.");
+  toast("Your guest profile was updated.");
 });
 $("chat-form").addEventListener("submit", sendChatMessage);
 $("chat-toggle").addEventListener("click", () => {
