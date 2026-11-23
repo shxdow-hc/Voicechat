@@ -105,3 +105,42 @@ revoke all on public.account_sessions from anon, authenticated;
 grant execute on function public.claim_account_session(text) to authenticated;
 grant execute on function public.refresh_account_session(text) to authenticated;
 grant execute on function public.release_account_session(text) to authenticated;
+
+-- Owner-only dashboard: no account is privileged until manually inserted here.
+create table if not exists public.platform_admins (
+ user_id uuid primary key references auth.users(id) on delete cascade,
+ created_at timestamptz not null default now()
+);
+alter table public.platform_admins enable row level security;
+revoke all on public.platform_admins from anon, authenticated;
+grant select on public.platform_admins to authenticated;
+drop policy if exists "Users can check their own admin flag" on public.platform_admins;
+create policy "Users can check their own admin flag" on public.platform_admins
+ for select to authenticated using (user_id=auth.uid());
+
+create table if not exists public.room_sessions (
+ user_id uuid primary key references auth.users(id) on delete cascade,
+ username text not null, room_key text not null, room_name text not null,
+ room_code text not null, joined_at timestamptz not null default now(),
+ last_seen timestamptz not null default now()
+);
+alter table public.room_sessions enable row level security;
+revoke all on public.room_sessions from anon, authenticated;
+grant select,insert,update,delete on public.room_sessions to authenticated;
+drop policy if exists "Users manage their own room presence" on public.room_sessions;
+create policy "Users manage their own room presence" on public.room_sessions
+ for all to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());
+drop policy if exists "Platform admins read all room presence" on public.room_sessions;
+create policy "Platform admins read all room presence" on public.room_sessions
+ for select to authenticated using(exists(select 1 from public.platform_admins a where a.user_id=auth.uid()));
+
+drop policy if exists "Authenticated users can read profiles" on public.profiles;
+drop policy if exists "Users and platform admins can read profiles" on public.profiles;
+create policy "Users and platform admins can read profiles" on public.profiles
+ for select to authenticated using(id=auth.uid() or exists(select 1 from public.platform_admins a where a.user_id=auth.uid()));
+
+-- Run once after confirming the owner's registered username:
+-- insert into public.platform_admins(user_id)
+-- select id from auth.users
+-- where lower(raw_user_meta_data ->> 'username')=lower('REPLACE_WITH_OWNER_USERNAME')
+-- on conflict(user_id) do nothing;
