@@ -6,3 +6,16 @@
 .room-chat{grid-column:2;grid-row:1 / span 2;width:100%;height:100%;min-height:320px;max-height:none}
 .room-tip{grid-column:1;grid-row:3;width:100%}
 @media(max-width:900px){.room-content{display:flex;align-items:stretch;justify-content:flex-start}.voice-stage,.screen-area,.room-chat,.room-tip{width:100%;flex:none}.voice-stage{height:290px}.room-chat{min-height:210px;max-height:280px}}
+
+/* HCunion dark-violet theme */
+:root{--bg:#07050d;--panel:#100c1a;--panel2:#191128;--line:#302044;--muted:#a39ab5;--text:#faf7ff;--purple:#a56bff;--purple2:#7b35e8;--blue:#b18cff}
+body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transparent 48%),linear-gradient(180deg,#08050f 0%,#07050d 55%,#090611 100%)}
+.ambient-one{background:#8739e8;opacity:.22}.ambient-two{background:#51228f;opacity:.18}
+.brand-mark,.mini-brand{background:linear-gradient(145deg,#bd8aff,#7026d5);box-shadow:0 0 22px #8d43e633}
+.brand-accent{color:#b987ff}
+.hero-copy h1 span{background:linear-gradient(90deg,#d9bdff,#a56bff 58%,#8750e8);background-clip:text;color:transparent}
+.entry-card{background:linear-gradient(145deg,rgba(28,18,43,.97),rgba(14,10,23,.97));border-color:#35234a}
+.primary-button{background:linear-gradient(100deg,#9a50ed,#6f32c8);box-shadow:0 8px 24px #7b35e83b}
+.voice-stage{background:radial-gradient(ellipse at 50% 48%,#302044 0%,#1c132a 38%,#100c19 78%);border-color:#3b2854}
+.voice-orb{background:linear-gradient(145deg,#d0aaff,#7b35c8 50%,#35204e)}
+.orb-inner{background:radial-gradient(circle at 35% 25%,#583477,#241631 70%)}
