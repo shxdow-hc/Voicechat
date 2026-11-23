@@ -20,7 +20,7 @@ if (displayName) { $("lobby").classList.remove("hidden"); usernameGate.classList
 else { $("lobby").classList.add("hidden"); usernameGate.classList.remove("hidden"); }
 let channel = null, room = null, isOwner = false, myRole = "member";
 let localStream = null, screenStream = null, micOn = false, peers = new Map(), members = new Map(), remoteStreams = new Map();
-let toastTimer = null;
+let toastTimer = null, ownerElectionTimer = null;
 
 function toast(message) {
   const el = $("toast"); el.textContent = message; el.classList.add("show");
@@ -87,7 +87,9 @@ async function enterRoom(info, create) {
   room = info;
   const ownerKey = "vc-owner-" + info.key;
   const savedOwner = localStorage.getItem(ownerKey);
-  isOwner = create || savedOwner === userId;
+  // Ownership is represented by live room presence, not a stale per-browser
+  // owner flag. This allows a successor to take over after the creator leaves.
+  isOwner = create;
   if (create) localStorage.setItem(ownerKey, userId);
   myRole = isOwner ? "owner" : "member";
   $("sidebar-room-name").textContent = info.name;
@@ -174,6 +176,46 @@ function syncMembers() {
     next.set(id, { id, name: p.name || "Guest", role: p.role || "member", micOn: !!p.micOn });
   }
   members = next;
+
+  // All remaining clients independently calculate the same pseudo-random
+  // successor from the live member list, avoiding competing elections.
+  const activeOwner = [...members.values()].find(member => member.role === "owner");
+  if (ownerElectionTimer) { clearTimeout(ownerElectionTimer); ownerElectionTimer = null; }
+  if (activeOwner) {
+    if (userId === activeOwner.id) {
+      isOwner = true; myRole = "owner";
+    } else {
+      isOwner = false;
+      myRole = members.get(userId)?.role || "member";
+    }
+    $("self-role").textContent = isOwner ? "Room owner" : myRole === "moderator" ? "Moderator" : "Member";
+    $("room-menu-button").classList.toggle("hidden", !isOwner);
+  } else if (members.size) {
+    ownerElectionTimer = setTimeout(async () => {
+      if (!channel || !room) return;
+      const stateNow = channel.presenceState();
+      const current = Object.entries(stateNow).map(([id, entries]) => ({
+        id, role: (entries[0] || {}).role || "member"
+      }));
+      if (!current.length || current.some(member => member.role === "owner")) return;
+      const ids = current.map(member => member.id).sort();
+      const seed = room.key + "|" + ids.join("|");
+      let hash = 2166136261;
+      for (let i = 0; i < seed.length; i++) {
+        hash ^= seed.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      const successor = ids[(hash >>> 0) % ids.length];
+      if (successor !== userId) return;
+      isOwner = true; myRole = "owner";
+      localStorage.setItem("vc-owner-" + room.key, userId);
+      $("self-role").textContent = "Room owner";
+      $("room-menu-button").classList.remove("hidden");
+      await channel.track({ id: userId, name: displayName, role: "owner", joinedAt: Date.now(), micOn });
+      toast("The previous owner left. You're the new room owner!");
+    }, 1800);
+  }
+
   renderMembers();
   for (const id of members.keys()) if (id !== userId) ensurePeer(id);
   for (const id of [...peers.keys()]) if (!members.has(id)) closePeer(id);
