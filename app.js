@@ -313,7 +313,8 @@ function closePeer(id) {
 
 async function shareScreen() {
   try {
-    if (!navigator.mediaDevices?.getDisplayMedia) { toast("Screen sharing isn't supported in this browser."); return; }
+    if (!window.isSecureContext) { toast("Screen sharing needs a secure HTTPS page. Open the GitHub Pages link directly."); return; }
+    if (!navigator.mediaDevices?.getDisplayMedia) { toast("This browser does not expose screen capture. Try desktop Chrome or Edge."); return; }
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
     const track = screenStream.getVideoTracks()[0];
     if (!track) throw new Error("No screen video track was created.");
@@ -322,7 +323,8 @@ async function shareScreen() {
     $("screen-button").classList.add("active");
     $("screen-button").querySelector("small").textContent = "Stop share";
     for (const pc of peers.values()) {
-      const sender = pc.getSenders().find(s => s.track?.kind === "video");
+      const videoTransceiver = pc.getTransceivers().find(t => t.receiver?.track?.kind === "video");
+      const sender = videoTransceiver?.sender;
       if (sender) await sender.replaceTrack(track);
     }
     track.addEventListener("ended", stopScreen, { once: true });
@@ -335,7 +337,11 @@ async function shareScreen() {
 function stopScreen() {
   const oldStream = screenStream; screenStream = null;
   if (oldStream) {
-    for (const pc of peers.values()) { const sender = pc.getSenders().find(s => s.track?.kind === "video"); if (sender) sender.replaceTrack(null).catch(() => {}); }
+    for (const pc of peers.values()) {
+      const videoTransceiver = pc.getTransceivers().find(t => t.receiver?.track?.kind === "video");
+      const sender = videoTransceiver?.sender;
+      if (sender) sender.replaceTrack(null).catch(() => {});
+    }
     oldStream.getTracks().forEach(t => t.stop());
   }
   $("screen-video").srcObject = null;
