@@ -186,8 +186,26 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
     </form>
   </dialog>
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./app.js?v=profile-avatars1"></script>
+  <script type="module" src="./app.js?v=discord-pfps-2"></script>
 </body>
+
+<style id="discord-profile-polish">
+  .voice-stage{position:relative;min-height:300px}
+  .voice-people{pointer-events:none}
+  .voice-person{min-height:104px;justify-content:center;backdrop-filter:blur(5px)}
+  .voice-person-avatar{box-shadow:0 3px 14px #0008}
+  .voice-person.speaking .voice-person-avatar{outline:3px solid #39cf59;outline-offset:3px}
+  .chat-avatar{flex:0 0 34px;border:1px solid #555}
+  .chat-message{padding:3px 0}
+  .chat-message-heading strong{color:#f2f2f2}
+  .member .avatar{flex:0 0 34px}
+  .profile-open{display:inline-flex;align-items:center;gap:7px}
+  @media(max-width:760px){
+    .voice-stage{min-height:270px}
+    .voice-person{min-height:90px}
+  }
+</style>
+
 </html>
 <style id="profile-avatar-theme">
 .profile-open{color:#f3f3f3!important;border-color:#4b4b4b!important;background:#303030!important}
