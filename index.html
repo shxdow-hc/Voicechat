@@ -94,39 +94,8 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="./"><span class="brand-mark"><span></span><span></span><span></span></span><span>HC<span class="brand-accent">union</span></span></a>
-      <div class="topbar-right"><button id="admin-open" class="small-button hidden" type="button">Owner dashboard</button><button id="account-logout" class="small-button" type="button">Log out</button><button id="profile-open" class="small-button profile-open hidden" type="button">Edit profile</button><span class="status-dot"></span><span id="connection-label">Not connected</span></div>
+      <div class="topbar-right"><button id="profile-open" class="small-button profile-open hidden" type="button">Edit profile</button><span class="status-dot"></span><span id="connection-label">Not connected</span></div>
     </header>
-
-    <section id="username-gate" class="lobby username-gate">
-      <div class="hero-copy">
-        <div class="eyebrow"><span class="eyebrow-line"></span> WELCOME TO HCUNION</div>
-        <h1>Your room.<br><span>Your people.</span></h1>
-        <p class="hero-subtitle">Log in or create your HCunion account to join voice rooms.</p>
-      </div>
-      <article class="entry-card username-card auth-card">
-        <div class="card-icon purple-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
-        <div id="auth-login-panel">
-          <h2>Welcome back</h2><p>Log in with your username and password.</p>
-          <form id="auth-login-form">
-            <label for="login-username">Username</label><input id="login-username" maxlength="20" autocomplete="username" placeholder="Your username" required>
-            <label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" placeholder="Your password" required>
-            <button class="primary-button" type="submit">Log in <span>↗</span></button>
-          </form>
-          <p class="auth-switch-copy">New here? <button id="show-register" class="auth-switch" type="button">Create an account</button></p>
-        </div>
-        <div id="auth-register-panel" class="hidden">
-          <h2>Create account</h2><p>Choose a unique username and make a password.</p>
-          <form id="auth-register-form">
-            <label for="register-username">Username</label><input id="register-username" minlength="3" maxlength="20" autocomplete="username" placeholder="3–20 letters, numbers, or _" required>
-            <label for="register-password">Password</label><input id="register-password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required>
-            <label for="register-confirm">Confirm password</label><input id="register-confirm" type="password" minlength="8" autocomplete="new-password" placeholder="Enter the password again" required>
-            <button class="primary-button" type="submit">Register <span>↗</span></button>
-          </form>
-          <p class="auth-switch-copy">Already have an account? <button id="show-login" class="auth-switch" type="button">Log in</button></p>
-        </div>
-        <p id="username-message" class="message" role="status"></p>
-      </article>
-    </section>
 
     <section id="lobby" class="lobby hidden">
       <div class="hero-copy">
@@ -204,6 +173,7 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
       <h2>Customize your profile</h2>
       <p>Your profile picture appears beside your messages and in the voice room.</p>
       <div class="profile-preview"><div class="avatar profile-avatar" id="profile-preview-avatar">G</div><div><strong id="profile-preview-name">Guest</strong><small>Profile picture</small></div></div>
+      <label for="profile-name">Display name</label><input id="profile-name" maxlength="24" value="Guest" autocomplete="nickname" required>
       <label for="avatar-file" class="avatar-upload-label">Choose a profile picture</label>
       <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
       <button id="avatar-remove" class="secondary-button" type="button">Remove picture</button>
@@ -258,9 +228,5 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
 @media(max-width:760px){.voice-people{inset:8px;gap:7px}.voice-person{width:90px;padding:7px 5px}.voice-person-avatar{width:52px;height:52px}}
 </style>
 
-<style id="username-auth-style">
-.auth-card h2{margin-bottom:7px}.auth-card form{display:flex;flex-direction:column}.auth-card input{width:100%;height:43px;border:1px solid #484848;background:#171717;border-radius:7px;padding:0 12px;color:#fff;font:inherit;font-size:12px;margin:0 0 14px}.auth-card input:focus{outline:2px solid #35c65a;outline-offset:1px}.auth-switch-copy{text-align:center;color:#aaa;font-size:11px;margin:18px 0 0!important}.auth-switch{border:0;background:none;color:#58d66e;font:inherit;font-weight:800;cursor:pointer;text-decoration:underline}.auth-card .message{min-height:20px}.auth-card .primary-button{width:100%}
-</style>
 
-<style id="account-session-ui">#account-logout{color:#f2f2f2;background:#303030;border:1px solid #4b4b4b;border-radius:6px;padding:8px 11px;font:inherit;font-size:10px;font-weight:700;cursor:pointer}#account-logout:hover{border-color:#38d45e;color:#70e584}</style>
 <style>.admin-dialog{width:min(680px,calc(100% - 24px));max-height:86vh;overflow:auto}.admin-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.admin-stats>div{padding:14px;background:#211a30;border:1px solid #3b2c51;border-radius:9px;display:flex;flex-direction:column;gap:5px}.admin-stats strong{font-size:24px;color:#c8a6ff}.admin-stats span,.admin-list small{font-size:10px;color:#aaa0ba}.admin-toolbar{display:flex;justify-content:space-between;align-items:center;padding:13px 0 8px;border-top:1px solid #30243e}.admin-toolbar strong{font-size:12px}.admin-list{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow:auto}.admin-row{padding:10px 12px;border:1px solid #332743;background:#17111f;border-radius:8px;display:flex;justify-content:space-between;gap:12px;align-items:center}.admin-row strong{font-size:11px;display:block}.admin-row small{display:block;margin-top:4px}.admin-empty{font-size:11px;color:#a99fb5;padding:10px}.admin-dialog .fine-print{font-size:10px;color:#a99fb5;line-height:1.5}</style>
