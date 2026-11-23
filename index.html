@@ -61,11 +61,11 @@
         <div class="sidebar-bottom"><div class="you-card"><div class="avatar you-avatar" id="self-avatar">Y</div><div class="you-meta"><strong id="self-name">You</strong><small id="self-role">Member</small></div><button id="leave-button" class="leave-button" title="Leave room" aria-label="Leave room">↗</button></div></div>
       </aside>
       <section class="room-main">
-        <header class="room-header"><div><div class="breadcrumb">VOICE ROOMS <span>/</span> <b id="room-title">Room</b></div><h2 id="room-heading">Room</h2></div><div class="room-header-actions"><span class="room-live"><i></i> LIVE</span><button id="copy-invite" class="small-button">Copy invite</button><button id="room-menu-button" class="icon-button" aria-label="Room options">•••</button></div></header>
+        <header class="room-header"><div><div class="breadcrumb">VOICE ROOMS <span>/</span> <b id="room-title">Room</b></div><h2 id="room-heading">Room</h2></div><div class="room-header-actions"><span class="room-live"><i></i> LIVE</span><button id="chat-toggle" class="small-button" type="button" aria-expanded="false">Chat</button><button id="copy-invite" class="small-button">Copy invite</button><button id="room-menu-button" class="icon-button" aria-label="Room options">•••</button></div></header>
         <div class="room-content">
           <div class="voice-stage"><div class="stage-glow"></div><div class="stage-content"><div class="voice-orb"><div class="orb-inner"><span class="orb-bars"><i></i><i></i><i></i><i></i><i></i></span></div></div><h3 id="stage-title">You're in the room</h3><p id="stage-subtitle">Turn on your microphone to start talking.</p><div class="stage-pills"><span><b id="stage-member-count">1</b> in room</span><span>End-to-end browser connection</span></div></div></div>
           <div id="screen-area" class="screen-area hidden"><div class="screen-top"><span><i></i> LIVE SCREEN</span><button id="stop-screen" class="text-button">Stop sharing</button></div><video id="screen-video" autoplay playsinline muted></video><div id="remote-screens" class="remote-screens"></div></div>
-          <section class="room-chat" aria-label="Room chat">
+          <section id="room-chat" class="room-chat hidden" aria-label="Room chat">
             <header class="room-chat-header"><div><strong>Room chat</strong><span>Messages are visible to people in this room</span></div><span class="chat-live-dot">LIVE</span></header>
             <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
             <p id="chat-empty" class="chat-empty">No messages yet. Say hello!</p>
