@@ -196,7 +196,8 @@ function makePeer(id) {
   peers.set(id, pc);
   if (localStream) for (const track of localStream.getTracks()) pc.addTrack(track, localStream);
   // Pre-negotiate a video transceiver so screen sharing needs no renegotiation.
-  pc.addTransceiver("video", { direction: "sendrecv" });
+  const videoTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
+  if (screenStream?.getVideoTracks()[0]) videoTransceiver.sender.replaceTrack(screenStream.getVideoTracks()[0]).catch(() => {});
   return pc;
 }
 async function addLocalAudio(pc) {
@@ -251,10 +252,12 @@ function attachRemote(id, stream) {
     video.srcObject = new MediaStream([videoTrack]);
     $("screen-area").classList.remove("hidden");
     video.play().catch(() => {});
-    videoTrack.addEventListener("ended", () => {
+    const removeRemoteScreen = () => {
       card.remove();
       if (!$("remote-screens").children.length && !screenStream) $("screen-area").classList.add("hidden");
-    }, { once: true });
+    };
+    videoTrack.addEventListener("ended", removeRemoteScreen, { once: true });
+    videoTrack.addEventListener("mute", removeRemoteScreen, { once: true });
   }
 }
 function closePeer(id) {
