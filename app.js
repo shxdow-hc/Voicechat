@@ -637,18 +637,34 @@ $("screen-button").addEventListener("click", () => screenStream ? stopScreen() :
 $("stop-screen").addEventListener("click", stopScreen);
 $("fullscreen-screen").addEventListener("click", async () => {
   const remoteVideos = [...$("remote-screens").querySelectorAll(".remote-screen-card:not([hidden]) video")];
-  const target = screenStream ? $("screen-video") : (remoteVideos[0] || $("screen-video"));
+  const target = screenStream ? $("screen-video") : (remoteVideos.find(video => video.srcObject) || $("screen-video"));
+  const hasVideo = !!(target.srcObject && target.srcObject.getVideoTracks().some(track => track.readyState === "live"));
+  if (!hasVideo) { toast("There isn't an active screen share to enlarge yet."); return; }
+
   try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
+    // Safari's native video fullscreen must be preferred on iPhone/iPad.
+    if (typeof target.webkitEnterFullscreen === "function" && !document.fullscreenElement) {
+      target.webkitEnterFullscreen();
+      return;
+    }
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      return;
+    }
+    const fullscreenTarget = $("screen-area");
+    if (fullscreenTarget.requestFullscreen) {
+      await fullscreenTarget.requestFullscreen();
     } else if (target.requestFullscreen) {
       await target.requestFullscreen();
-    } else if (target.webkitEnterFullscreen) {
-      target.webkitEnterFullscreen();
     } else {
       toast("Fullscreen isn't supported by this browser.");
     }
   } catch (err) {
+    // Some browsers expose requestFullscreen but only permit native video fullscreen.
+    if (typeof target.webkitEnterFullscreen === "function") {
+      try { target.webkitEnterFullscreen(); return; } catch {}
+    }
     toast("Couldn't enter fullscreen. Try the browser's fullscreen option.");
   }
 });
