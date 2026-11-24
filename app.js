@@ -634,6 +634,23 @@ function stopScreen() {
 }
 $("screen-button").addEventListener("click", () => screenStream ? stopScreen() : shareScreen());
 $("stop-screen").addEventListener("click", stopScreen);
+$("fullscreen-screen").addEventListener("click", async () => {
+  const remoteVideos = [...$("remote-screens").querySelectorAll(".remote-screen-card:not([hidden]) video")];
+  const target = screenStream ? $("screen-video") : (remoteVideos[0] || $("screen-video"));
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else if (target.requestFullscreen) {
+      await target.requestFullscreen();
+    } else if (target.webkitEnterFullscreen) {
+      target.webkitEnterFullscreen();
+    } else {
+      toast("Fullscreen isn't supported by this browser.");
+    }
+  } catch (err) {
+    toast("Couldn't enter fullscreen. Try the browser's fullscreen option.");
+  }
+});
 
 async function leaveRoom(returnToLobby = true) {
   if (ownerElectionTimer) { clearTimeout(ownerElectionTimer); ownerElectionTimer = null; }
