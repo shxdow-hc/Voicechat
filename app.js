@@ -538,7 +538,7 @@ function attachRemote(id, stream) {
       const label = document.createElement("div");
       label.className = "screen-top";
       const who = document.createElement("span");
-      who.textContent = (members.get(id)?.name || "A member") + " is sharing";
+      who.textContent = (members.get(id)?.name || "A member") + "’s screen";
       label.append(who);
       const video = document.createElement("video");
       video.autoplay = true;
@@ -603,6 +603,7 @@ async function shareScreen() {
     if (!track) throw new Error("No screen video track was created.");
     $("screen-video").srcObject = screenStream;
     $("screen-area").classList.remove("hidden");
+    $("screen-owner-label").textContent = displayName + "’s screen";
     $("screen-button").classList.add("active");
     $("screen-button").querySelector("small").textContent = "Stop share";
     for (const pc of peers.values()) {
@@ -628,7 +629,7 @@ function stopScreen() {
     oldStream.getTracks().forEach(t => t.stop());
   }
   $("screen-video").srcObject = null;
-  if (!$("remote-screens").children.length) $("screen-area").classList.add("hidden");
+  if (!$("remote-screens").querySelector(".remote-screen-card:not([hidden])")) $("screen-area").classList.add("hidden");
   $("screen-button").classList.remove("active"); $("screen-button").querySelector("small").textContent = "Share screen";
 }
 $("screen-button").addEventListener("click", () => screenStream ? stopScreen() : shareScreen());
