@@ -538,7 +538,7 @@ function attachRemote(id, stream) {
       const label = document.createElement("div");
       label.className = "screen-top";
       const who = document.createElement("span");
-      who.textContent = (members.get(id)?.name || "A member") + "’s screen";
+      who.textContent = (members.get(id)?.name || "A member") + " is sharing";
       label.append(who);
       const video = document.createElement("video");
       video.autoplay = true;
@@ -557,6 +557,7 @@ function attachRemote(id, stream) {
     // Keep the element so it can display the later unmute event.
     const showVideo = () => {
       card.hidden = false;
+      $("screen-owner-label").textContent = (members.get(id)?.name || "A member") + " is sharing";
       $("screen-area").classList.remove("hidden");
       video.play().catch(() => {});
     };
@@ -603,7 +604,7 @@ async function shareScreen() {
     if (!track) throw new Error("No screen video track was created.");
     $("screen-video").srcObject = screenStream;
     $("screen-area").classList.remove("hidden");
-    $("screen-owner-label").textContent = displayName + "’s screen";
+    $("screen-owner-label").textContent = displayName + " is sharing";
     $("screen-button").classList.add("active");
     $("screen-button").querySelector("small").textContent = "Stop share";
     for (const pc of peers.values()) {
