@@ -132,6 +132,7 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
 .remote-screen-card .screen-top{background:transparent!important;border:0!important;padding:0 2px 8px!important}
 .screen-actions button{background:#30313a!important}
 </style>
+<style id="screen-share-label-cleanup">#screen-owner-label:empty{display:none}.screen-area:fullscreen{width:100vw;height:100vh;max-width:none;border:0;border-radius:0;background:#050509;display:flex;flex-direction:column}.screen-area:fullscreen #screen-video,.screen-area:fullscreen .remote-screen-card video{width:100%;height:calc(100vh - 46px);max-height:none;aspect-ratio:auto;object-fit:contain}.screen-area:fullscreen .remote-screens{flex:1;min-height:0;overflow:auto}.screen-area:fullscreen .screen-top{flex:none}</style>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -184,7 +185,7 @@ body{background:radial-gradient(ellipse at 50% -18%,rgba(105,48,177,.24),transpa
         <header class="room-header"><div><div class="breadcrumb">VOICE ROOMS <span>/</span> <b id="room-title">Room</b></div><h2 id="room-heading">Room</h2></div><div class="room-header-actions"><span class="room-live"><i></i> LIVE</span><button id="chat-toggle" class="small-button" type="button" aria-expanded="false">Chat</button><button id="copy-invite" class="small-button">Copy invite</button><button id="room-menu-button" class="icon-button" aria-label="Room options">•••</button></div></header>
         <div class="room-content">
           <div class="voice-stage"><div class="stage-glow"></div><div id="voice-people" class="voice-people" aria-label="People in this voice room"></div><div class="stage-content"><div class="voice-orb"><div class="orb-inner"><span class="orb-bars"><i></i><i></i><i></i><i></i><i></i></span></div></div><h3 id="stage-title">You're in the room</h3><p id="stage-subtitle">Turn on your microphone to start talking.</p><div class="stage-pills"><span><b id="stage-member-count">1</b> in room</span><span>End-to-end browser connection</span></div></div></div>
-          <div id="screen-area" class="screen-area hidden"><div class="screen-top"><span><strong id="screen-owner-label">Screen share</strong></span><div class="screen-actions"><button id="fullscreen-screen" class="text-button" type="button">Fullscreen ⛶</button><button id="stop-screen" class="text-button">Stop sharing</button></div></div><video id="screen-video" autoplay playsinline muted></video><div id="remote-screens" class="remote-screens"></div></div>
+          <div id="screen-area" class="screen-area hidden"><div class="screen-top"><span><strong id="screen-owner-label" aria-live="polite"></strong></span><div class="screen-actions"><button id="fullscreen-screen" class="text-button" type="button">Fullscreen ⛶</button><button id="stop-screen" class="text-button">Stop sharing</button></div></div><video id="screen-video" autoplay playsinline muted></video><div id="remote-screens" class="remote-screens"></div></div>
           <section id="room-chat" class="room-chat hidden" aria-label="Room chat">
             <header class="room-chat-header"><div><strong>Room chat</strong><span>Messages are visible to people in this room</span></div><span class="chat-live-dot">LIVE</span></header>
             <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
