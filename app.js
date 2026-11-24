@@ -557,12 +557,16 @@ function attachRemote(id, stream) {
     // Keep the element so it can display the later unmute event.
     const showVideo = () => {
       card.hidden = false;
+      // A remote share uses its own video element; never leave the empty local
+      // preview occupying the large 16:9 space above it.
+      $("screen-video").hidden = !screenStream;
       $("screen-owner-label").textContent = (members.get(id)?.name || "A member") + " is sharing";
       $("screen-area").classList.remove("hidden");
       video.play().catch(() => {});
     };
     const hideVideo = () => {
       card.hidden = true;
+      $("screen-video").hidden = !screenStream;
       if (!$("remote-screens").querySelector(".remote-screen-card:not([hidden])") && !screenStream) {
         $("screen-area").classList.add("hidden");
       }
@@ -603,6 +607,7 @@ async function shareScreen() {
     const track = screenStream.getVideoTracks()[0];
     if (!track) throw new Error("No screen video track was created.");
     $("screen-video").srcObject = screenStream;
+    $("screen-video").hidden = false;
     $("screen-area").classList.remove("hidden");
     $("screen-owner-label").textContent = displayName + " is sharing";
     $("screen-button").classList.add("active");
@@ -630,6 +635,7 @@ function stopScreen() {
     oldStream.getTracks().forEach(t => t.stop());
   }
   $("screen-video").srcObject = null;
+  $("screen-video").hidden = true;
   if (!$("remote-screens").querySelector(".remote-screen-card:not([hidden])")) $("screen-area").classList.add("hidden");
   $("screen-button").classList.remove("active"); $("screen-button").querySelector("small").textContent = "Share screen";
 }
