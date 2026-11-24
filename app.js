@@ -511,35 +511,78 @@ async function handleSignal(p) {
   } catch (err) { console.warn("WebRTC signaling error", err); }
 }
 function attachRemote(id, stream) {
+  if (!stream) return;
   remoteStreams.set(id, stream);
-  const audioTracks = stream.getAudioTracks();
-  if (audioTracks.length) {
+
+  for (const audioTrack of stream.getAudioTracks()) {
     let audio = document.getElementById("remote-audio-" + id);
-    if (!audio) { audio = document.createElement("audio"); audio.id = "remote-audio-" + id; audio.autoplay = true; audio.playsInline = true; document.body.append(audio); }
-    audio.srcObject = new MediaStream(audioTracks);
+    if (!audio) {
+      audio = document.createElement("audio");
+      audio.id = "remote-audio-" + id;
+      audio.autoplay = true;
+      audio.playsInline = true;
+      document.body.append(audio);
+    }
+    if (audio.srcObject?.getAudioTracks?.()[0] !== audioTrack) {
+      audio.srcObject = new MediaStream([audioTrack]);
+    }
     audio.play().catch(() => {});
   }
-  const videoTrack = stream.getVideoTracks()[0];
-  if (videoTrack) {
+
+  for (const videoTrack of stream.getVideoTracks()) {
     let card = document.getElementById("remote-screen-" + id);
     if (!card) {
-      card = document.createElement("div"); card.className = "remote-screen-card"; card.id = "remote-screen-" + id;
-      const label = document.createElement("div"); label.className = "screen-top";
-      const who = document.createElement("span"); who.textContent = (members.get(id)?.name || "A member") + " is sharing";
+      card = document.createElement("div");
+      card.className = "remote-screen-card";
+      card.id = "remote-screen-" + id;
+      const label = document.createElement("div");
+      label.className = "screen-top";
+      const who = document.createElement("span");
+      who.textContent = (members.get(id)?.name || "A member") + " is sharing";
       label.append(who);
-      const video = document.createElement("video"); video.autoplay = true; video.playsInline = true;
-      card.append(label, video); $("remote-screens").append(card);
+      const video = document.createElement("video");
+      video.autoplay = true;
+      video.playsInline = true;
+      card.append(label, video);
+      $("remote-screens").append(card);
     }
+
     const video = card.querySelector("video");
-    video.srcObject = new MediaStream([videoTrack]);
-    $("screen-area").classList.remove("hidden");
-    video.play().catch(() => {});
-    const removeRemoteScreen = () => {
-      card.remove();
-      if (!$("remote-screens").children.length && !screenStream) $("screen-area").classList.add("hidden");
+    if (video.srcObject?.getVideoTracks?.()[0] !== videoTrack) {
+      video.srcObject = new MediaStream([videoTrack]);
+    }
+
+    // A negotiated video transceiver exists before sharing begins. Its remote
+    // track starts muted, then becomes live when the sender calls replaceTrack.
+    // Keep the element so it can display the later unmute event.
+    const showVideo = () => {
+      card.hidden = false;
+      $("screen-area").classList.remove("hidden");
+      video.play().catch(() => {});
     };
-    videoTrack.addEventListener("ended", removeRemoteScreen, { once: true });
-    videoTrack.addEventListener("mute", removeRemoteScreen, { once: true });
+    const hideVideo = () => {
+      card.hidden = true;
+      if (!$("remote-screens").querySelector(".remote-screen-card:not([hidden])") && !screenStream) {
+        $("screen-area").classList.add("hidden");
+      }
+    };
+
+    if (videoTrack.readyState === "ended") {
+      card.remove();
+    } else if (videoTrack.muted) {
+      hideVideo();
+    } else {
+      showVideo();
+    }
+
+    videoTrack.addEventListener("unmute", showVideo);
+    videoTrack.addEventListener("mute", hideVideo);
+    videoTrack.addEventListener("ended", () => {
+      card.remove();
+      if (!$("remote-screens").querySelector(".remote-screen-card:not([hidden])") && !screenStream) {
+        $("screen-area").classList.add("hidden");
+      }
+    }, { once: true });
   }
 }
 function closePeer(id) {
